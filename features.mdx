@@ -1,0 +1,699 @@
+---
+title: Features
+description: Comprehensive overview of all features in the JKPSC Answer Evaluator
+---
+
+## Key Features
+
+The JKPSC Answer Evaluator is packed with features designed to help you improve your answer writing and track your progress.
+
+<CardGroup cols={2}>
+  <Card title="AI-Powered Evaluation" icon="brain">
+    Advanced Google Gemini 2.5 Flash AI with subject-specific rubrics
+  </Card>
+  <Card title="Complete Privacy" icon="shield-check">
+    100% client-side processing with local storage only
+  </Card>
+  <Card title="Multi-Format Upload" icon="file-arrow-up">
+    PDF, images (JPG/PNG/WebP), or multiple images with OCR
+  </Card>
+  <Card title="Evaluation History" icon="clock-rotate-left">
+    Track all evaluations with IndexedDB storage
+  </Card>
+  <Card title="Progress Dashboard" icon="chart-line">
+    Visual analytics and performance trends
+  </Card>
+  <Card title="PDF Export" icon="file-pdf">
+    Download detailed evaluation reports
+  </Card>
+  <Card title="Dark Mode" icon="moon">
+    Beautiful light and dark themes
+  </Card>
+  <Card title="Offline-Ready" icon="wifi-slash">
+    Service worker for offline functionality
+  </Card>
+</CardGroup>
+
+---
+
+## 1. Subject-Specific AI Evaluation
+
+### Intelligent Rubrics for Each Subject
+
+Every subject has its own evaluation framework aligned with UPSC topper standards:
+
+<Tabs>
+  <Tab title="GS1">
+    **Art & Culture, History, Society, Geography**
+
+    **Evaluation Framework**:
+    - **PESTEL+ Analysis**: Political, Economic, Social, Technological, Environmental, Legal, Historical dimensions
+    - **Block Identification**: Automatically detects Art & Culture vs History vs Society vs Geography
+    - **Visual Emphasis**: Rewards maps, timelines, and diagrams
+    - **Technical Markers**: Expects specific dates, movements, dynasties, archaeological sites
+
+    **Non-Negotiable Requirements**:
+    ```typescript
+    // From gs1Rubrics.ts - Example for Art & Culture
+    nonNegotiables: [
+      {
+        category: "Technical Backbone",
+        checkpoints: [
+          "Specific monuments/sites/artforms mentioned by name",
+          "Dynastic/period attribution (Maurya/Gupta/Chola/Mughal)",
+          "Architectural terminology (shikhara/garbhagriha/minaret)"
+        ]
+      }
+    ]
+    ```
+
+    **Topper Markers**: UNESCO sites, ASI reports, temple architecture styles, iconographic elements
+  </Tab>
+
+  <Tab title="GS2">
+    **Polity, Governance, Social Justice, International Relations**
+
+    **Evaluation Framework**:
+    - **IC5 Structure**: Introduction → Context → Current Relevance → Conclusion
+    - **Constitutional Anchoring**: Articles 14, 15, 19, 21, 38, 44, 51A, etc.
+    - **Case Law References**: Puttaswamy, Sabrimala, Vishaka, Bommai, Kesavananda Bharati
+    - **Committee Reports**: 2nd ARC, Sachar, Mandal, Justice Verma
+
+    **Section Detection**:
+    ```typescript
+    // From gs2Rubrics.ts:150 - Auto-detects Polity vs Governance vs IR
+    export const identifyGS2Section = (question: string): GS2Section => {
+      const q = question.toLowerCase();
+      if (q.includes('article') || q.includes('constitutional')) return 'polity';
+      if (q.includes('governance') || q.includes('transparency')) return 'governance';
+      if (q.includes('international') || q.includes('bilateral')) return 'ir';
+      return 'social_justice';
+    };
+    ```
+
+    **Topper Markers**: Supreme Court judgments, constitutional amendments, parliamentary procedures
+  </Tab>
+
+  <Tab title="GS3">
+    **Economy, Science & Technology, Environment, Internal Security**
+
+    **Evaluation Framework**:
+    - **Data-Driven**: Expects statistics, GDP figures, poverty rates, emission targets
+    - **Policy Frameworks**: PLI scheme, Make in India, FAME, Ujjwala, UDAN
+    - **Institutional References**: NITI Aayog, RBI, SEBI, ISRO, DRDO
+    - **Technical Vocabulary**: Fiscal deficit, CAD, Gini coefficient, blockchain, CRISPR
+
+    **Strict Data Requirements**:
+    ```typescript
+    // From gs3Rubrics.ts - Economy section
+    nonNegotiables: [
+      {
+        category: "Quantitative Backbone",
+        checkpoints: [
+          "At least ONE data point (%, GDP contribution, year)",
+          "One policy/scheme name (PM-KISAN, MNREGA, PLI)",
+          "One institution (RBI, SEBI, NITI Aayog)"
+        ]
+      }
+    ]
+    ```
+
+    **Topper Markers**: Economic Survey data, Budget allocations, scientific publications, mission programs
+  </Tab>
+
+  <Tab title="GS4">
+    **Ethics, Integrity, Aptitude**
+
+    **Evaluation Framework**:
+    - **Theoretical Grounding**: Kant, Aristotle, Bentham, Gandhi, values/ethics/attitude distinction
+    - **Administrative Application**: Civil service values, code of conduct, RTI, whistleblower protection
+    - **Case Study Analysis**: Stakeholder mapping, dilemma identification, PESTEL options analysis
+    - **Behavioral Dimensions**: Emotional intelligence, compassion, empathy, integrity
+
+    **Case Study Rubric (20 marks)**:
+    ```typescript
+    // From gs4Rubrics.ts:320 - Case study evaluation
+    categories: [
+      { name: "Stakeholder Mapping & Dilemma Identification", maxScore: 4 },
+      { name: "Options Analysis (PESTEL)", maxScore: 4 },
+      { name: "Course of Action & Justification", maxScore: 4 },
+      { name: "Administrative Pragmatism & Expression", maxScore: 2 }
+    ]
+    ```
+
+    **Topper Markers**: Specific thinkers quoted, administrative examples, ethical frameworks applied
+  </Tab>
+
+  <Tab title="Essay">
+    **Multidimensional Thematic Essays**
+
+    **4-Section Framework (125 marks)**:
+
+    1. **Structure & Hook (30 marks)**
+       - Anecdote/storytelling introduction (not generic definition)
+       - Clear thesis statement and roadmap
+       - Paragraph linking with transitions
+       - Full-circle conclusion
+       - Vision 2047/SDG leap
+
+    2. **PESTEL+ Multidimensionality (40 marks)**
+       - Political, Economic, Social (Gender MANDATORY), Technological, Environmental, Legal dimensions
+       - Historical context + Behavioral/Psychological depth
+       - Spatial scale: Individual → Nation → Global
+       - Temporal scale: Past → Present → Future
+
+    3. **Thematic Depth (35 marks)**
+       - Constitutional articles (14, 15, 21, 38, 51A)
+       - Committee reports (2nd ARC, Sachar, Mandal)
+       - Case laws (Puttaswamy, Sabrimala, Vishaka)
+       - Global frameworks (COP26, SDGs, Paris Agreement)
+       - Scholars (Amartya Sen, Gandhi, Aristotle, Rousseau)
+
+    4. **Expression & Logic Thread (20 marks)**
+       - Vocabulary precision
+       - Paragraph rhythm (100-150 words optimal)
+       - Neutral, constitutional tone
+       - Bridge sentences
+
+    **Topper Benchmarking**:
+    ```typescript
+    // From gemini.ts:426 - Essay evaluation prompt
+    "Compare against Vikram Grewal (Poetry, Philosophy) and 
+     Gautam Vivekanandan (Global landmarks, Constitutional articles)"
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## 2. Intelligent OCR & Content Extraction
+
+### Multi-Format Upload Support
+
+The evaluator handles various input formats seamlessly:
+
+<Steps>
+  <Step title="PDF Upload">
+    **Automatic Text Extraction**
+
+    ```typescript
+    // From PdfUpload.tsx:86 - PDF.js extraction
+    const extractTextFromPdf = async (pdfFile: File): Promise<string> => {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
+      }
+    };
+    ```
+
+    If text extraction yields less than 50 characters (handwritten answers), the PDF is automatically **converted to images** for OCR.
+  </Step>
+
+  <Step title="Image Upload">
+    **Single or Multiple Images**
+
+    - Upload JPG, PNG, or WebP files
+    - Drag to reorder multiple images
+    - Automatic base64 conversion for AI processing
+
+    **Reorderable Grid**:
+    ```typescript
+    // From PdfUpload.tsx:476 - Sortable image interface
+    <SortableImageGrid 
+      files={pendingImages} 
+      onChange={handleImageReorder} 
+    />
+    ```
+  </Step>
+
+  <Step title="AI-Powered OCR">
+    **Smart Question Detection**
+
+    The AI can identify the question even if it's not on the first page:
+
+    ```typescript
+    // From PdfUpload.tsx:168 - Question identification logic
+    "IDENTIFY THE QUESTION: scan ALL images and find the one containing 
+     the question — it is typically printed or typed text inside a box 
+     or bordered area, written in a clearly different style from the 
+     handwritten answer"
+    ```
+
+    **Structure Preservation**:
+    - Subheadings (e.g., INTRODUCTION, CHALLENGES, WAY FORWARD)
+    - Bullet points (•, -, *)
+    - Numbered lists
+    - Paragraph breaks
+    - Diagrams/tables/maps marked with inline tags
+
+    **Diagram Detection**:
+    ```typescript
+    // From PdfUpload.tsx:185 - Diagram tagging
+    "If a DIAGRAM is present, insert: 
+     [DIAGRAM: <type> — <description>]
+     
+     If a TABLE is present, insert:
+     [TABLE: 3×2 — <description>] and transcribe content
+     
+     If a MAP is present, insert:
+     [MAP: <region/concept shown>]"
+    ```
+  </Step>
+</Steps>
+
+---
+
+## 3. Evaluation History & Progress Tracking
+
+### Local Storage with IndexedDB
+
+All your evaluations are stored locally using **IndexedDB** for fast, persistent storage:
+
+```typescript
+// From historyDb.ts - IndexedDB schema
+const DB_NAME = 'jkpsc-evaluator-history';
+const STORE_NAME = 'evaluations';
+
+interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  subject: string;
+  marks: number;
+  question: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  result: EvaluationResult;
+}
+```
+
+### Features
+
+<AccordionGroup>
+  <Accordion icon="clock" title="Automatic Saving">
+    Every evaluation is automatically saved after completion:
+
+    ```typescript
+    // From useEvalHistory.ts:37 - Auto-save on evaluation
+    await saveEvaluation(result, subject, marks, question);
+    ```
+
+    - Generates unique ID with timestamp
+    - Stores complete evaluation result
+    - Shows in history immediately (optimistic update)
+  </Accordion>
+
+  <Accordion icon="filter" title="Filter & Search">
+    Filter your history by:
+    - **Subject** (GS1/GS2/GS3/GS4/Essay)
+    - **Date range**
+    - **Score percentage**
+
+    ```typescript
+    // From historyDb.ts - Filter interface
+    interface HistoryFilter {
+      subject?: string;
+      dateFrom?: number;
+      dateTo?: number;
+      minPercentage?: number;
+      maxPercentage?: number;
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="eye" title="Review Past Evaluations">
+    Click any history entry to:
+    - View the complete evaluation
+    - See the original question and answer
+    - Review all feedback and tips
+    - Download PDF report
+  </Accordion>
+
+  <Accordion icon="trash" title="Delete or Clear">
+    - Delete individual entries
+    - Clear all history with confirmation
+    - Data is permanently removed from IndexedDB
+  </Accordion>
+
+  <Accordion icon="download" title="Export & Import">
+    **Export to JSON**:
+    ```json
+    [
+      {
+        "id": "1709457600000-abc123",
+        "timestamp": 1709457600000,
+        "subject": "GS2",
+        "marks": 15,
+        "question": "Discuss the role of...",
+        "score": 10.5,
+        "maxScore": 15,
+        "percentage": 70,
+        "result": { ... }
+      }
+    ]
+    ```
+
+    **Import with Merge/Replace**:
+    ```typescript
+    // From useEvalHistory.ts:100 - Import logic
+    await importHistory(entries, 'merge'); // Add new entries
+    await importHistory(entries, 'replace'); // Replace all
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Progress Dashboard
+
+Once you have 2+ evaluations, a **Progress Dashboard** appears with:
+
+<Tabs>
+  <Tab title="Score Trends">
+    **Line chart** showing score progression over time:
+    - X-axis: Evaluation date
+    - Y-axis: Score percentage
+    - Color-coded by subject
+  </Tab>
+
+  <Tab title="Subject Breakdown">
+    **Bar chart** comparing average scores by subject:
+    - GS1: 65%
+    - GS2: 72%
+    - GS3: 58%
+    - GS4: 70%
+  </Tab>
+
+  <Tab title="Statistics">
+    - **Total evaluations**: 47
+    - **Average score**: 67.3%
+    - **Highest score**: 87% (Essay)
+    - **Most practiced**: GS2 (15 evaluations)
+  </Tab>
+</Tabs>
+
+---
+
+## 4. Strict UPSC Evaluation Standards
+
+### 70% Scoring Ceiling
+
+The evaluator enforces a **strict 70% maximum** to match real UPSC standards:
+
+```typescript
+// From gemini.ts:32 - Ceiling enforcement
+const ceiling = Math.floor(params.marks * 0.7);
+
+"STRICT CEILING: Never exceed 7/10 or 10.5/15.
+In UPSC, 60-65% is a Rank-1 score."
+```
+
+<Warning>
+  **Why 70%?** In actual UPSC, toppers score 60-65% on average. A score of 7/10 or 10.5/15 is exceptionally strong. The evaluator prevents inflated scoring to keep you realistic.
+</Warning>
+
+### Generic Answer Penalty
+
+Answers without specific technical content are heavily penalized:
+
+```typescript
+// From gs1Rubrics.ts - Generic penalty
+"GENERIC PENALTY: If answer is correct but lacks Non-Negotiables 
+(Data/Maps/Terms), max score is 4/10."
+```
+
+**Non-Negotiables include**:
+- Specific articles, cases, committees
+- Data points and statistics
+- Technical terminology
+- Visual aids (diagrams, maps, tables)
+
+---
+
+## 5. PDF Report Generation
+
+### Download Formatted Evaluation Reports
+
+Click **"Download PDF Report"** to generate a professional PDF:
+
+```typescript
+// From pdfGenerator.tsx - PDF creation
+import { renderToString } from '@json-render/react-pdf';
+
+export const downloadPdf = async ({
+  result,
+  subject,
+  marks,
+  question,
+  answer
+}) => {
+  const pdfContent = {
+    title: `JKPSC Evaluation Report - ${subject} (${marks} marks)`,
+    sections: [
+      { heading: "Question", content: question },
+      { heading: "Your Answer", content: answer },
+      { heading: "Overall Score", content: `${result.overallScore}/${result.maxScore}` },
+      // ... all evaluation data
+    ]
+  };
+  
+  const pdfBlob = await renderToString(pdfContent);
+  downloadBlob(pdfBlob, `evaluation-${Date.now()}.pdf`);
+};
+```
+
+**PDF Contents**:
+- Header with logo and timestamp
+- Question and your complete answer
+- Overall score with visual bar
+- Category-wise breakdown
+- Key points covered vs missing
+- Improvement tips (all 5)
+- Model answer structure
+- Strengths analysis
+
+---
+
+## 6. Privacy & Security
+
+### 100% Client-Side Processing
+
+<CardGroup cols={2}>
+  <Card title="API Key Storage" icon="key">
+    Stored only in browser `localStorage`. Never sent to any server except Google Gemini API.
+
+    ```typescript
+    // From ApiKeyManager.tsx:43
+    localStorage.setItem(STORAGE_KEY, 
+      JSON.stringify({ mode: 'plain', key })
+    );
+    ```
+  </Card>
+
+  <Card title="Evaluation Data" icon="database">
+    All evaluations stored in local IndexedDB. No server uploads.
+
+    ```typescript
+    // From historyDb.ts:35
+    const db = await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    });
+    ```
+  </Card>
+
+  <Card title="Answer Processing" icon="shield">
+    PDFs and images processed in your browser. Never leave your device.
+
+    ```typescript
+    // From PdfUpload.tsx:76 - Client-side conversion
+    const fileToBase64 = (f: File): Promise<string> => 
+      new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(result.split(',')[1]);
+        reader.readAsDataURL(f);
+      });
+    ```
+  </Card>
+
+  <Card title="AI Evaluation" icon="brain">
+    Only the question + answer text is sent to Gemini API. Results returned directly to your browser.
+  </Card>
+</CardGroup>
+
+<Info>
+  **Data Privacy**: We have zero access to your API key, questions, answers, or evaluation results. Everything stays on your device.
+</Info>
+
+---
+
+## 7. Performance Optimizations
+
+### Web Workers for Non-Blocking Evaluation
+
+```typescript
+// From gemini.ts:514 - Worker-based evaluation
+if (typeof Worker !== 'undefined') {
+  const worker = new Worker(
+    new URL('../workers/evaluationWorker.ts', import.meta.url),
+    { type: 'module' }
+  );
+  
+  worker.postMessage({ apiKey, prompt, marks });
+  
+  worker.onmessage = (e) => {
+    if (e.data.type === 'result') {
+      resolve(e.data.result);
+    }
+  };
+}
+```
+
+**Benefits**:
+- UI remains responsive during evaluation
+- No freezing or lag
+- Automatic fallback to main thread if worker fails
+- 2-minute timeout for long evaluations
+
+### GSAP Animations
+
+Smooth, performant animations using GSAP:
+
+```typescript
+// From Index.tsx:70 - Hero animations
+const heroTl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+heroTl
+  .from(".hero-badge", { x: -40, opacity: 0, duration: 0.7 })
+  .from(".hero-title", { y: 60, opacity: 0, duration: 0.9 }, "-=0.4")
+  .from(".hero-subtitle", { y: 30, opacity: 0, duration: 0.7 }, "-=0.4");
+```
+
+**Features**:
+- Respects `prefers-reduced-motion`
+- Hardware-accelerated with `force3D: true`
+- Scroll-triggered animations with `ScrollTrigger`
+- Confetti on successful evaluation
+
+---
+
+## 8. Accessibility
+
+### WCAG 2.1 Compliance
+
+<AccordionGroup>
+  <Accordion icon="keyboard" title="Keyboard Navigation">
+    - All interactive elements are keyboard accessible
+    - Proper `tabIndex` and focus management
+    - Skip-to-content link for screen readers
+
+    ```tsx
+    // From Index.tsx:200
+    <a href="#main-content" className="skip-to-content">
+      Skip to main content
+    </a>
+    ```
+  </Accordion>
+
+  <Accordion icon="universal-access" title="ARIA Labels">
+    - Descriptive labels on all inputs and buttons
+    - Live regions for dynamic content
+    - Semantic HTML structure
+
+    ```tsx
+    // From EvaluationResults.tsx:154
+    <div
+      aria-live="polite"
+      aria-label={`Score: ${result.overallScore} out of ${result.maxScore}`}
+    >
+    ```
+  </Accordion>
+
+  <Accordion icon="circle-half-stroke" title="Color Contrast">
+    - WCAG AA compliant color ratios
+    - Dark mode with adjusted contrast
+    - Color-blind friendly palette
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## 9. Dark Mode
+
+Toggle between light and dark themes with persistent storage:
+
+```typescript
+// From Index.tsx:48 - Dark mode implementation
+const [isDark, setIsDark] = useState(() => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('theme') === 'dark';
+  }
+  return false;
+});
+
+useEffect(() => {
+  document.documentElement.classList.toggle('dark', isDark);
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}, [isDark]);
+```
+
+**Features**:
+- Instant theme switching
+- No flash of unstyled content
+- Persists across sessions
+- Beautiful gradients and dot patterns in both modes
+
+---
+
+## 10. Offline Support
+
+### Service Worker (Coming Soon)
+
+```javascript
+// From public/sw.js - Service worker registration
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('jkpsc-evaluator-v1').then((cache) => {
+      return cache.addAll([
+        '/',
+        '/index.html',
+        '/assets/index.css',
+        '/assets/index.js',
+      ]);
+    })
+  );
+});
+```
+
+**Offline Capabilities**:
+- Cached UI and assets
+- View past evaluations offline
+- Queue evaluations for when online
+- Background sync for pending requests
+
+---
+
+## Coming Soon
+
+<CardGroup cols={2}>
+  <Card title="Comparative Analysis" icon="chart-bar">
+    Compare multiple evaluations side-by-side to identify patterns
+  </Card>
+  <Card title="Custom Rubrics" icon="sliders">
+    Create and save your own evaluation criteria
+  </Card>
+  <Card title="Batch Upload" icon="layer-group">
+    Upload and evaluate multiple answers at once
+  </Card>
+  <Card title="AI Study Assistant" icon="graduation-cap">
+    Ask questions about missed key points and get explanations
+  </Card>
+</CardGroup>
+
+<Info>
+  **Suggest a Feature**: Join our [Telegram community](https://t.me/jkpscprepp) to request new features or report issues.
+</Info>

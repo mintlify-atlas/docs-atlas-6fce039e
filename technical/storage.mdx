@@ -1,0 +1,442 @@
+---
+title: 'Storage'
+description: 'IndexedDB for evaluation history, localStorage for API keys, and data encryption'
+---
+
+The JKPSC Answer Evaluator uses **IndexedDB** for storing evaluation history and **localStorage** for API key persistence. This page explains the storage architecture, data structures, and encryption implementation.
+
+## Storage Overview
+
+| Data Type | Storage | Encryption | Migration |
+|-----------|---------|------------|----------|
+| Evaluation History | IndexedDB | No | From localStorage v1 → IndexedDB |
+| Gemini API Key | localStorage | Optional (AES-GCM) | From plain string → JSON |
+
+## IndexedDB for Evaluation History
+
+The app uses **idb** (a lightweight IndexedDB wrapper) to persist unlimited evaluation history entries.
+
+### Database Schema
+
+Defined in `src/lib/historyDb.ts:17`:
+
+```typescript
+const DB_NAME = 'jkpscprep';
+const STORE = 'evaluations';
+const DB_VERSION = 1;
+
+interface JkpscDB extends DBSchema {
+  evaluations: {
+    key: string;          // entry.id
+    value: HistoryEntry;
+    indexes: {
+      by_timestamp: number;
+      by_subject: string;
+    };
+  };
+}
+```
+
+### HistoryEntry Interface
+
+Defined in `src/hooks/useEvalHistory.ts:12`:
+
+```typescript
+export interface HistoryEntry {
+  id: string;              // Unique ID: `${Date.now()}-${random}`
+  timestamp: number;       // Date.now() at save time
+  subject: string;         // 'GS1' | 'GS2' | 'GS3' | 'GS4' | 'Essay'
+  marks: number;           // 10 | 15 | 20 | 125
+  question: string;        // Truncated to 200 chars
+  score: number;           // e.g., 7
+  maxScore: number;        // e.g., 10
+  percentage: number;      // (score / maxScore) * 100
+  result: EvaluationResult; // Full evaluation data with categories, feedback, tips
+}
+```
+
+The `result` field contains the complete evaluation from Gemini, including:
+- Category-wise scores and feedback
+- Key points analysis (covered/missing)
+- Improvement tips
+- Model answer structure
+- Strengths and summary
+
+### Database Initialization
+
+The database is lazily initialized on first access (`src/lib/historyDb.ts:30`):
+
+```typescript
+let dbPromise: Promise<IDBPDatabase<JkpscDB>> | null = null;
+
+function getDb(): Promise<IDBPDatabase<JkpscDB>> {
+  if (!dbPromise) {
+    dbPromise = openDB<JkpscDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        const store = db.createObjectStore(STORE, { keyPath: 'id' });
+        store.createIndex('by_timestamp', 'timestamp');
+        store.createIndex('by_subject', 'subject');
+      },
+    }).then(async (db) => {
+      await migrateLegacyData(db);  // One-time migration from localStorage
+      return db;
+    });
+  }
+  return dbPromise;
+}
+```
+
+### Migration from localStorage
+
+The app automatically migrates old localStorage-based history to IndexedDB (`src/lib/historyDb.ts:46`):
+
+```typescript
+const LEGACY_KEY = 'jkpscprep_eval_history';
+
+async function migrateLegacyData(db: IDBPDatabase<JkpscDB>) {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) return;
+    const entries: HistoryEntry[] = JSON.parse(raw);
+    const tx = db.transaction(STORE, 'readwrite');
+    await Promise.all(entries.map((e) => tx.store.put(e)));
+    await tx.done;
+    localStorage.removeItem(LEGACY_KEY);
+    console.info(`[historyDb] Migrated ${entries.length} entries from localStorage`);
+  } catch (e) {
+    console.warn('[historyDb] Legacy migration failed (non-critical):', e);
+  }
+}
+```
+
+This runs **once** on the first database open and removes the old localStorage key.
+
+### CRUD Operations
+
+The `src/lib/historyDb.ts` module exports these functions:
+
+#### Read All Entries (Newest First)
+
+```typescript
+export async function getAllEntries(): Promise<HistoryEntry[]> {
+  const db = await getDb();
+  const all = await db.getAllFromIndex(STORE, 'by_timestamp');
+  return all.reverse(); // newest first
+}
+```
+
+#### Save/Update Entry
+
+```typescript
+export async function putEntry(entry: HistoryEntry): Promise<void> {
+  const db = await getDb();
+  await db.put(STORE, entry);
+}
+```
+
+#### Delete Single Entry
+
+```typescript
+export async function deleteEntryById(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(STORE, id);
+}
+```
+
+#### Clear All Entries
+
+```typescript
+export async function clearAllEntries(): Promise<void> {
+  const db = await getDb();
+  await db.clear(STORE);
+}
+```
+
+#### Filter Entries
+
+```typescript
+export interface HistoryFilter {
+  subject?: string;         // 'GS1' | 'GS2' … 'Essay' | '' = all
+  searchText?: string;      // matched against entry.question (case-insensitive)
+  minScore?: number;        // percentage 0–100
+  maxScore?: number;        // percentage 0–100
+}
+
+export async function getFilteredEntries(filter: HistoryFilter): Promise<HistoryEntry[]> {
+  let entries = await getAllEntries();
+
+  if (filter.subject) {
+    entries = entries.filter((e) => e.subject === filter.subject);
+  }
+  if (filter.searchText) {
+    const q = filter.searchText.toLowerCase();
+    entries = entries.filter((e) => e.question.toLowerCase().includes(q));
+  }
+  if (filter.minScore !== undefined) {
+    entries = entries.filter((e) => e.percentage >= filter.minScore!);
+  }
+  if (filter.maxScore !== undefined) {
+    entries = entries.filter((e) => e.percentage <= filter.maxScore!);
+  }
+
+  return entries;
+}
+```
+
+### React Hook Integration
+
+The `useEvalHistory` hook (`src/hooks/useEvalHistory.ts:24`) provides React bindings:
+
+```typescript
+export function useEvalHistory() {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load from IndexedDB on mount (also handles localStorage migration)
+  useEffect(() => {
+    getAllEntries()
+      .then(setHistory)
+      .catch((e) => console.warn('Failed to load evaluation history:', e))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const saveEvaluation = useCallback(async (
+    result: EvaluationResult,
+    subject: string,
+    marks: number,
+    question: string,
+  ) => {
+    const percentage = (result.overallScore / result.maxScore) * 100;
+    const entry: HistoryEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: Date.now(),
+      subject,
+      marks,
+      question: question.slice(0, 200),  // Truncate long questions
+      score: result.overallScore,
+      maxScore: result.maxScore,
+      percentage,
+      result,
+    };
+
+    try {
+      await putEntry(entry);
+    } catch (e) {
+      console.warn('Failed to persist evaluation to IndexedDB:', e);
+    }
+
+    // Optimistic update
+    setHistory(prev => [entry, ...prev]);
+    return entry;
+  }, []);
+
+  const deleteEntry = useCallback(async (id: string) => {
+    try {
+      await deleteEntryById(id);
+    } catch (e) {
+      console.warn('Failed to delete entry from IndexedDB:', e);
+    }
+    setHistory(prev => prev.filter(e => e.id !== id));
+  }, []);
+
+  const clearHistory = useCallback(async () => {
+    try {
+      await clearAllEntries();
+    } catch (e) {
+      console.warn('Failed to clear IndexedDB history:', e);
+    }
+    setHistory([]);
+  }, []);
+
+  const filterHistory = useCallback(async (filter: HistoryFilter): Promise<HistoryEntry[]> => {
+    try {
+      return await getFilteredEntries(filter);
+    } catch (e) {
+      console.warn('Failed to filter history:', e);
+      return [];
+    }
+  }, []);
+
+  return { history, isLoading, saveEvaluation, deleteEntry, clearHistory, filterHistory };
+}
+```
+
+## localStorage for API Keys
+
+The Gemini API key is stored in `localStorage` with optional encryption.
+
+### Storage Format
+
+Defined in `src/lib/crypto.ts:44`:
+
+```typescript
+export interface EncryptedKeyRecord {
+  mode: 'encrypted';
+  ciphertext: string;  // Base64-encoded AES-GCM ciphertext
+  salt: string;        // Base64-encoded PBKDF2 salt (16 bytes)
+  iv: string;          // Base64-encoded AES-GCM IV (12 bytes)
+}
+
+export interface PlainKeyRecord {
+  mode: 'plain';
+  key: string;         // Plaintext API key
+}
+
+export type KeyRecord = EncryptedKeyRecord | PlainKeyRecord;
+```
+
+### Read/Write Operations
+
+```typescript
+const STORAGE_KEY = 'gemini_api_key';
+
+export function readKeyRecord(): KeyRecord | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as KeyRecord;
+    if (parsed.mode === 'encrypted' || parsed.mode === 'plain') return parsed;
+  } catch {
+    // Legacy: plain key stored as a bare string
+    return { mode: 'plain', key: raw };
+  }
+  return null;
+}
+
+export function writeKeyRecord(record: KeyRecord): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+}
+
+export function removeKeyRecord(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+```
+
+## API Key Encryption
+
+The app uses **AES-GCM** (256-bit) encryption with **PBKDF2** key derivation.
+
+### Encryption Process
+
+Defined in `src/lib/crypto.ts:59`:
+
+```typescript
+const PBKDF2_ITERATIONS = 100_000;
+
+export async function encryptApiKey(apiKey: string, pin: string): Promise<EncryptedKeyRecord> {
+  const enc = new TextEncoder();
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const ivBytes = crypto.getRandomValues(new Uint8Array(12));
+  const salt = saltBytes.buffer as ArrayBuffer;
+  const iv = ivBytes.buffer as ArrayBuffer;
+  const derivedKey = await deriveKey(pin, salt);
+  const cipherBuf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    derivedKey,
+    enc.encode(apiKey),
+  );
+  return {
+    mode: 'encrypted',
+    ciphertext: bufToB64(cipherBuf),
+    salt: bufToB64(saltBytes),
+    iv: bufToB64(ivBytes),
+  };
+}
+```
+
+### Key Derivation
+
+```typescript
+async function deriveKey(pin: string, salt: ArrayBuffer): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+```
+
+**Security Details:**
+- **Algorithm**: AES-GCM (authenticated encryption)
+- **Key size**: 256 bits
+- **KDF**: PBKDF2 with 100,000 iterations (SHA-256)
+- **Salt**: 16 random bytes (128-bit)
+- **IV**: 12 random bytes (96-bit)
+
+### Decryption Process
+
+```typescript
+export async function decryptApiKey(record: EncryptedKeyRecord, pin: string): Promise<string> {
+  const derivedKey = await deriveKey(pin, b64ToBuf(record.salt));
+  const plainBuf = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: b64ToBuf(record.iv) },
+    derivedKey,
+    b64ToBuf(record.ciphertext),
+  );
+  return new TextDecoder().decode(plainBuf);
+}
+```
+
+If the PIN is incorrect, `crypto.subtle.decrypt` throws an error.
+
+### Base64 Encoding Helpers
+
+```typescript
+function bufToB64(buf: Uint8Array | ArrayBuffer): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function b64ToBuf(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer as ArrayBuffer;
+}
+```
+
+## Why IndexedDB Instead of localStorage?
+
+| Feature | localStorage | IndexedDB |
+|---------|-------------|----------|
+| Storage Limit | ~5–10 MB | ~50 MB – 1 GB+ (browser-dependent) |
+| Data Structure | Key-value (strings only) | Object store with indexes |
+| Query Performance | Full scan required | Index-based queries |
+| Transaction Support | No | Yes (ACID) |
+| Async API | No (blocking) | Yes (non-blocking) |
+| Storage Quota | Shared with all localStorage | Separate quota |
+
+**Why the migration?**
+- **Unlimited history** - Users can store hundreds of evaluations without hitting limits
+- **Faster filtering** - Index-based queries on `subject` and `timestamp`
+- **Better UX** - Non-blocking async operations prevent UI freezes
+- **Future-proof** - Enables advanced features like full-text search, sync, and export
+
+## Data Privacy
+
+All data is stored **locally in the user's browser**. No data is sent to any server except:
+
+1. **Gemini API** - Question, answer, and API key (for evaluation)
+2. **No backend server** - The app is a static SPA
+
+Users can:
+- Export their history as JSON
+- Clear all data with one click
+- Encrypt their API key with a PIN
+
+## Related Pages
+
+<CardGroup cols={2}>
+  <Card title="Gemini API Integration" icon="wand-magic-sparkles" href="/technical/gemini-api">
+    Learn how API keys are used for evaluation
+  </Card>
+  <Card title="PDF Processing" icon="file-pdf" href="/technical/pdf-processing">
+    Understand how uploaded files are processed before storage
+  </Card>
+</CardGroup>

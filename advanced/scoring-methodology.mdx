@@ -1,0 +1,633 @@
+---
+title: 'Scoring Methodology'
+description: 'How the evaluation engine calculates scores with the 70% ceiling, category-wise breakdown, and PESTEL+ analytical framework'
+icon: 'calculator'
+---
+
+## Overview
+
+The JKPSC Answer Evaluator uses a multi-layered scoring system designed to mirror UPSC topper benchmarks. Every score is calculated through:
+
+1. **Block/Section Identification** - Auto-detect topic area
+2. **Rubric Loading** - Load subject-specific evaluation criteria
+3. **Category-wise Assessment** - Evaluate across 4 dimensions
+4. **PESTEL+ Framework Application** - Check multi-dimensional coverage
+5. **Ceiling Enforcement** - Apply the strict 70% cap
+6. **Topper Benchmarking** - Compare against Rank-1 standards
+
+## The 70% Ceiling: Why It Exists
+
+<Info>
+**Real UPSC Benchmarking**
+
+In actual UPSC Mains, even Rank-1 toppers score around **60-65%** of total marks. The evaluator enforces a strict **70% ceiling** to:
+
+- Prevent inflated scores that don't reflect real UPSC standards
+- Train candidates to focus on incremental improvement rather than chasing 90%+
+- Align expectations with actual topper performance
+</Info>
+
+### Ceiling Implementation
+
+The ceiling is baked into the prompt sent to the AI model:
+
+```typescript
+// From src/lib/gemini.ts
+const ceiling = Math.floor(params.marks * 0.7);
+
+// Example ceilings:
+// 10 marks → 7 max
+// 15 marks → 10 max (10.5 with precision)
+// 20 marks → 14 max
+// 125 marks (Essay) → 87 max
+```
+
+The AI is explicitly instructed:
+
+> "overallScore": \<number between 0 and **{ceiling}**, NEVER higher>
+
+### Subject-Specific Ceilings
+
+| Subject | 10-mark | 15-mark | 20-mark | 125-mark |
+|---------|---------|---------|---------|----------|
+| GS1     | 7       | 10      | —       | —        |
+| GS2     | 7       | 10.5    | —       | —        |
+| GS3     | 7       | 10.5    | —       | —        |
+| GS4     | 7       | —       | 14      | —        |
+| Essay   | —       | —       | —       | 87       |
+
+<Note>
+The slight variation (10 vs 10.5 for 15-markers) reflects differences in subject complexity and rubric design.
+</Note>
+
+## Scoring Pipeline
+
+### Step 1: Block/Section Identification
+
+Before evaluation begins, the system identifies the specific topic area:
+
+<CodeGroup>
+```typescript GS1 - Block Identification
+// From src/data/gs1Rubrics.ts
+export const identifyGS1Block = (topic: string): GS1Block => {
+  const topicLower = topic.toLowerCase();
+  
+  // Art & Culture keywords
+  if (/art|culture|painting|sculpture|architecture|temple|dance|music|bhakti|sufi/.test(topicLower)) {
+    return 'art_culture';
+  }
+  
+  // World History keywords
+  if (/world war|french revolution|industrial revolution|communism|capitalism/.test(topicLower)) {
+    return 'world_history';
+  }
+  
+  // ... continues for society, geography, history
+}
+```
+
+```typescript GS2 - Section Identification
+// From src/data/gs2Rubrics.ts
+export const identifyGS2Section = (topic: string): GS2Section => {
+  const topicLower = topic.toLowerCase();
+
+  if (/constitution|article|parliament|judiciary|federal|amendment/.test(topicLower)) {
+    return 'polity';
+  }
+
+  if (/international|foreign|bilateral|diplomacy|quad|brics|treaty/.test(topicLower)) {
+    return 'international_relations';
+  }
+
+  if (/social justice|vulnerable|sc\/st|minority|welfare|poverty/.test(topicLower)) {
+    return 'social_justice';
+  }
+
+  if (/governance|transparency|e.?governance|civil service|ngo|rti/.test(topicLower)) {
+    return 'governance';
+  }
+  
+  return 'polity'; // default
+}
+```
+
+```typescript GS4 - Section Identification
+// From src/data/gs4Rubrics.ts
+export const identifyGS4Section = (topic: string): GS4Section => {
+  const topicLower = topic.toLowerCase();
+
+  if (/case study|dilemma|situation|you are a|posted as/.test(topicLower)) {
+    return 'case_study';
+  }
+
+  if (/emotional intelligence|goleman|nolan|probity|citizen.?s charter|rti/.test(topicLower)) {
+    return 'values_ei_probity';
+  }
+
+  if (/attitude|kant|mill|aristotle|deontolog|utilitarian|thinker/.test(topicLower)) {
+    return 'theory_thinkers';
+  }
+
+  return 'baseline'; // default
+}
+```
+</CodeGroup>
+
+This identification determines which **specialized rubric** to load.
+
+### Step 2: Rubric & Key Points Loading
+
+Once the block/section is identified, the system loads:
+
+1. **Subject-Specific Rubric** with:
+   - Non-Negotiables (mandatory checkpoints)
+   - PESTEL Dimensions
+   - Scoring Matrix
+   - Topper Markers
+
+2. **Topic-Specific Key Points** (for GS1-4):
+   - Must-mention terms
+   - Technical vocabulary
+   - Expected diagrams
+
+```typescript
+// From src/lib/gemini.ts - buildGS1Prompt example
+const block = identifyGS1Block(params.question);
+const rubric = gs1BlockRubrics[block];
+const relevantKeyPoints = gs1DetailedKeyPoints.filter(kp => kp.block === block);
+```
+
+### Step 3: Category-Wise Assessment
+
+Each answer is evaluated across **4 categories**, with marks allocated based on question type:
+
+#### For GS1 (Example: Art & Culture, 10 marks)
+
+```typescript
+const categories = [
+  { name: 'Technical Depth & Non-Negotiables', maxScore: 3 },
+  { name: 'PESTEL+ Multidimensionality', maxScore: 2 },
+  { name: 'Visual Representation & Maps', maxScore: 2 },
+  { name: 'Structure, Demand Adherence & Expression', maxScore: 3 }
+];
+```
+
+**Each category ceiling = 70% of maxScore:**
+- Technical Depth (3 marks) → Max 2.1 marks
+- PESTEL+ (2 marks) → Max 1.4 marks
+- Visual (2 marks) → Max 1.4 marks
+- Structure (3 marks) → Max 2.1 marks
+
+#### For GS2 Social Justice (15 marks)
+
+```typescript
+const categories = [
+  { name: 'Constitutional & Legal Framework', maxScore: 4 },
+  { name: 'Data, Reports & Committees', maxScore: 4 },
+  { name: 'PESTEL+ Multidimensionality', maxScore: 4 },
+  { name: 'Structure & Demand Adherence', maxScore: 3 }
+];
+```
+
+#### For GS4 Case Study (20 marks)
+
+```typescript
+const categories = [
+  { name: 'Stakeholder Mapping & Dilemma Identification', maxScore: 6 },
+  { name: 'Options Analysis with PESTEL', maxScore: 5 },
+  { name: 'Course of Action Quality', maxScore: 5 },
+  { name: 'Constitutional & Theoretical Anchoring', maxScore: 4 }
+];
+```
+
+#### For Essays (125 marks)
+
+```typescript
+const sections = [
+  { name: 'Structure & Hook (Start/End)', maxScore: 30 },
+  { name: 'PESTEL+ Multidimensionality', maxScore: 40 },
+  { name: 'Thematic Depth (Syllabus Data)', maxScore: 35 },
+  { name: 'Expression & Logic Thread', maxScore: 20 }
+];
+```
+
+### Step 4: PESTEL+ Framework Application
+
+The **PESTEL+ Framework** ensures multi-dimensional analysis:
+
+<Tabs>
+  <Tab title="Core PESTEL">
+    **P** - Political/Administrative
+    - Governance structures
+    - Policy frameworks
+    - Power dynamics
+
+    **E** - Economic
+    - Cost-benefit analysis
+    - Resource allocation
+    - Economic impact
+
+    **S** - Social/Cultural
+    - Social equity
+    - Cultural aspects
+    - Vulnerable groups
+
+    **T** - Technological
+    - Tech solutions
+    - Digital divide
+    - Innovation
+
+    **E** - Environmental
+    - Sustainability
+    - Climate impact
+    - Resource conservation
+
+    **L** - Legal/Ethical
+    - Constitutional provisions
+    - Legal frameworks
+    - Ethical considerations
+  </Tab>
+
+  <Tab title="+ Extensions">
+    **H** - Historical (Essays, GS1)
+    - Past context
+    - Evolution
+    - Lessons learned
+
+    **B** - Behavioral/Psychological (Essays, GS4)
+    - Human behavior
+    - Psychological frameworks
+    - Attitude change
+
+    **G** - Geopolitical (GS2 IR, GS3 Security)
+    - Strategic depth
+    - Regional dynamics
+    - Global positioning
+  </Tab>
+</Tabs>
+
+**Scoring Impact:**
+
+Answers covering **5+ PESTEL dimensions** score in the "Good" band (46-60%).
+
+Answers covering **7+ dimensions with depth** enter the "Topper" band (61-70%).
+
+### Step 5: Ceiling Enforcement
+
+After category-wise scoring, the AI calculates:
+
+```javascript
+// Pseudo-logic of AI evaluation
+let categoryScores = [
+  { name: 'Technical Depth', score: 2.5, maxScore: 3 },
+  { name: 'PESTEL+', score: 1.8, maxScore: 2 },
+  { name: 'Visual', score: 0.5, maxScore: 2 },
+  { name: 'Structure', score: 2.0, maxScore: 3 }
+];
+
+let rawTotal = categoryScores.reduce((sum, cat) => sum + cat.score, 0);
+// rawTotal = 6.8
+
+let ceiling = Math.floor(10 * 0.7); // 7
+let overallScore = Math.min(rawTotal, ceiling);
+// overallScore = 6.8 (within ceiling)
+```
+
+<Warning>
+If the sum of category scores exceeds the ceiling, the overall score is capped. Individual category scores may also be adjusted proportionally.
+</Warning>
+
+### Step 6: Topper Benchmarking
+
+The final score is contextualized against topper benchmarks:
+
+<CardGroup cols={2}>
+  <Card title="Vikram Grewal (Rank 1, 2023)" icon="user-graduate">
+    **Essay Style:**
+    - Poetry quotes (Invictus, Gibran)
+    - Deep philosophical frameworks (Freud, Aristotle)
+    - Behavioral/Self-awareness dimension
+    - Reflective, sophisticated tone
+  </Card>
+
+  <Card title="Gautam Vivekanandan (Rank 5, 2023)" icon="user-graduate">
+    **GS Style:**
+    - High data density (Survey figures)
+    - Constitutional Articles cited
+    - Committee-heavy institutional flow
+    - Current affairs anchoring
+  </Card>
+
+  <Card title="Ishita Kishore (Topper)" icon="user-graduate">
+    **GS1 Style:**
+    - Multiple flowcharts per answer
+    - Contextual intros ("Recently...")
+    - High fact density
+    - Clear sub-headings
+  </Card>
+
+  <Card title="Aditya Srivastava (Rank 1)" icon="user-graduate">
+    **GS4 Style:**
+    - Clear IBC structure
+    - Stakeholder diagrams
+    - PESTEL option analysis
+    - Short-term + long-term solutions
+  </Card>
+</CardGroup>
+
+The AI explicitly compares answers against these styles in feedback.
+
+## Scoring Examples
+
+### Example 1: GS2 Polity (10 marks)
+
+**Question:** Discuss the challenges to federalism in India.
+
+**Answer Summary:**
+- Defined federalism
+- Mentioned Governor's role, President's Rule
+- Cited Article 356
+- Listed 3 challenges
+- No case laws, no committees
+- No map/diagram
+
+**Scoring:**
+
+| Category | Max | Achieved | Reasoning |
+|----------|-----|----------|----------|
+| Article Density | 2.5 | 1.0 | Only Art. 356 cited. Missed 131, 280, others |
+| Case Laws | 2.0 | 0.0 | No S.R. Bommai, Nabam Rebia |
+| PESTEL+ | 2.5 | 1.5 | Political + Legal only. Missed Economic (Finance Commission), Social |
+| Structure | 3.0 | 2.0 | Good intro/body/conclusion. Sub-headings present |
+| **Total** | **10** | **4.5/7** | **45% - Average band** |
+
+**Key Gaps:**
+- Missing S.R. Bommai case (federalism landmark)
+- No Sarkaria/Punchhi Commission mention
+- Limited PESTEL (only 2 dimensions)
+
+### Example 2: GS3 Environment (15 marks)
+
+**Question:** Examine the impact of climate change on biodiversity in India.
+
+**Answer Summary:**
+- Cited IPCC AR6
+- Mentioned COP26 Panchamrit
+- Listed impacts (coral bleaching, species migration)
+- Included rough India map of biodiversity hotspots
+- Cited Articles 48A, 51A(g)
+- Mentioned Gadgil Committee for Western Ghats
+- Discussed mitigation strategies
+
+**Scoring:**
+
+| Category | Max | Achieved | Reasoning |
+|----------|-----|----------|----------|
+| Global Framework | 4.0 | 3.0 | IPCC + COP26. Missed Kunming-Montreal 30x30 |
+| Committee & Legal | 4.0 | 3.0 | Gadgil + Articles 48A/51A. Missed Kasturirangan |
+| Technical Vocab | 2.5 | 1.5 | Some terms (coral bleaching). Missed Ecotones, Cryosphere |
+| Visual | 2.0 | 1.5 | Map present but not labeled well |
+| PESTEL+ | 2.5 | 2.0 | 4 dimensions. Missed Technological (EWS, Remote Sensing) |
+| **Total** | **15** | **9.0/10.5** | **60% - Good band, approaching Topper** |
+
+**Key Gaps:**
+- Missing Kunming-Montreal Framework (30x30 biodiversity target)
+- Kasturirangan Committee not mentioned
+- No Technological dimension (Remote Sensing, GIS for monitoring)
+
+### Example 3: Essay (125 marks)
+
+**Topic:** "Technology is a useful servant but a dangerous master."
+
+**Answer Summary:**
+- Started with Oppenheimer anecdote (Manhattan Project)
+- Covered 7 PESTEL+ dimensions (P, E, S, T, E, L, B)
+- Cited constitutional morality (Article 51A)
+- Mentioned AI ethics, Digital Divide
+- Referenced Gandhi ("Science without morality is a sin")
+- Concluded by re-linking to opening + Vision 2047
+- 1,150 words, good flow
+
+**Scoring:**
+
+| Section | Max | Ceiling | Achieved | Reasoning |
+|---------|-----|---------|----------|----------|
+| Structure & Hook | 30 | 21 | 20 | Strong anecdote + circularity. Missed temporal leap clarity |
+| PESTEL+ | 40 | 28 | 24 | 7 dimensions but Environmental depth lacking |
+| Thematic Depth | 35 | 24.5 | 18 | Some data. Missed committees (2nd ARC, Kasturirangan), Case Laws |
+| Expression & Logic | 20 | 14 | 13 | Good vocabulary, flow. Missed core keyword repetition |
+| **Total** | **125** | **87** | **75/87** | **60% - Solid Good band** |
+
+**Key Gaps:**
+- Missing Gold Dust: No Kasturirangan Committee, no specific case laws
+- Environmental dimension superficial (no COP26, no IPCC)
+- Could cite more scholars (Amartya Sen on capability approach to tech access)
+
+## Understanding Your Score Report
+
+When you receive your evaluation, here's how to read it:
+
+### Overall Score Context
+
+```
+overallScore: 6.5 / 10
+= 65%
+```
+
+**Interpretation:**
+- **0-30%**: Needs fundamental restructuring
+- **31-45%**: Basic understanding, major gaps
+- **46-60%**: Good foundation, needs refinement
+- **61-70%**: Topper level, minor tweaks only
+
+### Category Feedback
+
+Each category has 3-sentence feedback:
+
+1. **What you did well** - Specific elements praised
+2. **What you missed** - Named gaps (Articles, Cases, Data)
+3. **What toppers include** - Concrete additions to make
+
+**Example:**
+
+> "You correctly defined federalism and mentioned Article 356. However, you missed citing the S.R. Bommai case which established the basic structure doctrine for federalism. A topper answer would anchor the discussion in this landmark judgment and also reference the Sarkaria Commission recommendations."
+
+### Key Points Analysis
+
+Two lists show exactly what to add:
+
+**Covered:**
+- Article 356
+- Governor's role
+- President's Rule
+
+**Missing:**
+- S.R. Bommai case
+- Sarkaria Commission
+- Article 131 (inter-state disputes)
+- Finance Commission (Art. 280)
+
+<Tip>
+Treat the "Missing" list as your study checklist. Add these items to your answer template for this topic.
+</Tip>
+
+### Improvement Tips
+
+Actionable, specific suggestions:
+
+1. "Add Article 131 which deals with inter-state disputes under original jurisdiction of SC. This shows federalism's judicial dimension."
+2. "Cite S.R. Bommai case (1994) which laid down conditions for Art. 356. This is a mandatory landmark for federalism questions."
+3. "Include a 2x2 table comparing Cooperative vs Competitive Federalism with examples (GST Council vs NITI Aayog)."
+
+### Model Answer Structure
+
+A 250-300 word blueprint:
+
+```
+Introduction (2-3 lines):
+Define federalism as dual polity with constitutional distribution.
+Mention Article 1 (Union of States) as starting point.
+
+Body:
+
+1. Constitutional Framework (Articles 1, 131, 245-263, 280, 356)
+   - Federal features vs Unitary bias
+   - Asymmetrical federalism (Art. 370 context)
+
+2. Challenges to Federal Balance
+   a) Political: Governor's discretionary powers (Art. 163)
+      - Nabam Rebia case on Speaker disqualification
+   b) Fiscal: Finance Commission devolution disputes
+      - Cess/Surcharge not shareable (15th FC)
+   c) Administrative: Cooperative vs Competitive models
+      - GST Council success vs NITI Aayog advisory status
+
+3. Landmark Judgments
+   - S.R. Bommai (1994): Art. 356 misuse check
+   - I.R. Coelho: 9th Schedule review
+
+4. Reform Suggestions
+   - Sarkaria/Punchhi Commission: Governor tenure
+   - Inter-State Council activation
+
+Conclusion:
+Re-emphasize Ambedkar's vision of "holding together" federalism.
+Link to SDG 16 (Strong Institutions) and Preamble's "unity and integrity."
+```
+
+<Note>
+The model answer is a **blueprint**, not a full answer. It shows structure, sub-headings, and must-include elements.
+</Note>
+
+## Special Considerations
+
+### For Essays
+
+Essay scoring has unique aspects:
+
+1. **Block Identification**:
+   - Philosophical (Block A) → Emphasize introspection, psychological frameworks
+   - Socio-Economic (Block B) → Emphasize data (NFHS, ASER), committees
+   - Governance (Block C) → Emphasize 2nd ARC, institutional health
+   - Environment/Science (Block D) → Emphasize COP, IPCC, tech ethics
+   - International (Block E) → Emphasize soft power, global commons
+
+2. **Topper Markers**:
+   - Captivating anecdote (not generic quote)
+   - Seamless PESTEL+ (8 dimensions minimum)
+   - Perfect circularity (re-link to opening)
+   - High fact density (committees, data, scholars)
+   - Temporal leap (present → Vision 2047/SDG)
+
+3. **87/125 Ceiling**:
+   - Section 1 (Structure): 21/30 max
+   - Section 2 (PESTEL+): 28/40 max
+   - Section 3 (Thematic): 24.5/35 max
+   - Section 4 (Expression): 14/20 max
+
+### For Case Studies (GS4)
+
+Case study scoring emphasizes:
+
+1. **Stakeholder Diagram** (Mandatory):
+   - Individual (You)
+   - Primary (Victims, Beneficiaries)
+   - Secondary (Politicians, Media)
+   - Invisible (Environment, Future Generations)
+
+2. **Ethical Dilemmas** (Value vs Value):
+   - Public Duty vs Personal Loyalty
+   - Rule of Law vs Compassion
+   - Efficiency vs Equity
+
+3. **PESTEL Option Analysis**:
+   - Each option evaluated on 6 dimensions
+   - Merits + Demerits listed
+   - Pragmatism check (implementable in district?)
+
+4. **Constitutional Anchoring**:
+   - Articles 14, 21, 38, 51A
+   - Gandhi's Talisman
+   - Rawls' Veil of Ignorance
+   - Kantian Ethics
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="Why is my score so low compared to my self-assessment?">
+    UPSC marking is deliberately strict. Even toppers score 60-65%. If you scored 45%, you're in the "Average" band, which means you have correct understanding but lack the depth (data, articles, cases) that distinguishes high scores.
+
+    **Common gaps:**
+    - Missing constitutional articles
+    - No committee citations
+    - Lack of diagrams/maps (Geography, IR)
+    - Generic writing without technical terms
+  </Accordion>
+
+  <Accordion title="How do I move from 50% to 65%?">
+    Focus on the **Non-Negotiables**:
+
+    1. **Add specific citations**: Replace "poverty is an issue" with "According to MPI 2023, 14.9% of India's population is multidimensionally poor"
+    2. **Include diagrams**: Geography and IR questions MANDATE maps
+    3. **Cite committees**: Every GS2/GS3 answer should have at least one committee (2nd ARC, Sachar, Gadgil, etc.)
+    4. **Expand PESTEL**: Aim for 5+ dimensions instead of 2-3
+    5. **Constitutional anchoring**: Every GS2/GS4 answer should cite relevant Articles
+  </Accordion>
+
+  <Accordion title="Why does the AI sometimes give different scores for the same answer?">
+    AI models have inherent variability (temperature = 0.3 in our config allows slight variation). Differences are typically ±0.5 marks.
+
+    **However**, the core feedback (missing articles, committees, etc.) remains consistent. Focus on the qualitative gaps, not the exact decimal score.
+  </Accordion>
+
+  <Accordion title="Can I ever score above 70%?">
+    No. The ceiling is hardcoded and mirrors real UPSC standards. Even if you write a perfect answer, the maximum is 70%.
+
+    **Why this matters:**
+    - Prevents unrealistic expectations
+    - Trains you to focus on quality over chasing 90%+
+    - Aligns your benchmark with actual toppers
+  </Accordion>
+
+  <Accordion title="How is the Essay ceiling (87/125) calculated differently?">
+    Essays use a 4-section framework (30+40+35+20 = 125 marks). Each section has its own 70% ceiling:
+
+    - Structure (30 marks) → 21 max
+    - PESTEL+ (40 marks) → 28 max
+    - Thematic Depth (35 marks) → 24.5 max
+    - Expression (20 marks) → 14 max
+
+    Total ceiling = 21+28+24.5+14 = **87.5** → rounded to **87**.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Evaluation Rubrics" icon="clipboard-check" href="/advanced/evaluation-rubrics">
+    Detailed rubrics for each subject with category breakdowns
+  </Card>
+  <Card title="Data Privacy" icon="shield-halved" href="/advanced/data-privacy">
+    Learn how your data stays 100% client-side
+  </Card>
+</CardGroup>

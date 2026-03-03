@@ -1,0 +1,332 @@
+---
+title: 'PDF Processing'
+description: 'PDF text extraction with pdfjs-dist, image upload handling, and OCR via Gemini Vision API'
+---
+
+The JKPSC Answer Evaluator supports uploading answer sheets as **PDF files** or **image files** (JPG, PNG, WebP). This page explains the extraction pipeline, OCR fallback strategy, and multi-image reordering.
+
+## Supported Input Formats
+
+- **PDF files** (single file, max 10MB)
+- **Image files** (JPG, PNG, WebP — multiple files allowed, max 10MB each)
+
+## PDF.js Integration
+
+The app uses **pdfjs-dist** for client-side PDF text extraction. The worker is configured in `src/components/PdfUpload.tsx:10`:
+
+```typescript
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set up PDF.js worker using Vite's import.meta.url
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
+```
+
+This ensures PDF processing runs in a Web Worker, preventing UI blocking.
+
+## Text Extraction Pipeline
+
+When a PDF is uploaded, the app follows this flow:
+
+### Step 1: Text Extraction (`extractTextFromPdf`)
+
+The `extractTextFromPdf` function (`src/components/PdfUpload.tsx:86`) attempts to extract text using PDF.js:
+
+```typescript
+const extractTextFromPdf = async (pdfFile: File): Promise<string> => {
+  const arrayBuffer = await pdfFile.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = '';
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item: any) => item.str)
+      .join(' ');
+    fullText += pageText + '\n\n';
+  }
+
+  return fullText.trim();
+};
+```
+
+This works well for **typed/printed PDFs** but fails for **handwritten answer sheets** or scanned images.
+
+### Step 2: Fallback to Image Conversion
+
+If the extracted text is too short (less than 50 characters), the app converts the PDF to images and uses Gemini Vision API for OCR (`src/components/PdfUpload.tsx:326`):
+
+```typescript
+if (text.trim().length < 50) {
+  const images = await convertPdfToImages(pdfFile);
+  const content = await extractWithAI(images, true);  // Use vision API
+  onContentExtracted(content);
+} else {
+  const content = await extractWithAI(text, false);   // Use text-only API
+  onContentExtracted(content);
+}
+```
+
+### Step 3: PDF to Images Conversion
+
+The `convertPdfToImages` function (`src/components/PdfUpload.tsx:104`) renders each page as a PNG:
+
+```typescript
+const convertPdfToImages = async (pdfFile: File): Promise<string[]> => {
+  const arrayBuffer = await pdfFile.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const images: string[] = [];
+
+  const maxPages = Math.min(pdf.numPages, 10);  // Limit to 10 pages
+  setProgress({ current: 0, total: maxPages, stage: 'Converting pages' });
+
+  for (let i = 1; i <= maxPages; i++) {
+    setProgress({ current: i, total: maxPages, stage: 'Converting pages' });
+
+    const page = await pdf.getPage(i);
+    const scale = 2;  // 2x scale for better OCR quality
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+      canvas: canvas,
+    }).promise;
+
+    const base64 = canvas.toDataURL('image/png').split(',')[1];  // Strip data:image/png;base64, prefix
+    images.push(base64);
+  }
+
+  return images;
+};
+```
+
+**Key Details:**
+- Maximum 10 pages processed (to avoid exceeding Gemini's token limits)
+- Scale factor of 2 for better OCR accuracy
+- Returns base64-encoded PNG images
+- Shows progress bar with page count
+
+## Image Upload Handling
+
+When users upload **multiple image files** (e.g., photographed answer pages), the app provides a **drag-and-drop reordering interface**.
+
+### Multi-Image Flow
+
+1. **File Validation** (`src/components/PdfUpload.tsx:265`):
+   ```typescript
+   const processFiles = useCallback(async (selectedFiles: File[]) => {
+     // Validate all files
+     for (const f of selectedFiles) {
+       if (!SUPPORTED_FILE_TYPES.includes(f.type)) {
+         setError(`"${f.name}" is not supported. Use PDF, JPG, PNG, or WebP.`);
+         return;
+       }
+       if (f.size > 10 * 1024 * 1024) {
+         setError(`"${f.name}" is too large. Max 10MB per file.`);
+         return;
+       }
+     }
+
+     // Don't mix PDFs with images
+     const hasImages = selectedFiles.some(f => isImageFile(f));
+     const hasPdfs = selectedFiles.some(f => f.type === 'application/pdf');
+     if (hasImages && hasPdfs) {
+       setError('Please upload either a PDF or images, not both together.');
+       return;
+     }
+
+     if (hasPdfs && selectedFiles.length > 1) {
+       setError('Please upload only one PDF at a time.');
+       return;
+     }
+   }, []);
+   ```
+
+2. **Image Staging** (`src/components/PdfUpload.tsx:386`):
+   ```typescript
+   const stageImages = (selectedFiles: File[]) => {
+     setError(null);
+     // Validate file types and sizes...
+     setPendingImages(selectedFiles);
+     setOrderedImages(selectedFiles);
+   };
+   ```
+
+3. **Reordering via SortableImageGrid** (`src/components/PdfUpload.tsx:476`):
+   ```typescript
+   <SortableImageGrid files={pendingImages} onChange={handleImageReorder} />
+   ```
+   Users can **drag-and-drop** images to change the page order before processing.
+
+4. **Confirmation & Processing** (`src/components/PdfUpload.tsx:408`):
+   ```typescript
+   const handleConfirmImages = () => {
+     if (orderedImages.length > 0) {
+       setPendingImages([]);
+       processFiles(orderedImages);
+     }
+   };
+   ```
+
+### Image to Base64 Conversion
+
+Images are converted to base64 before sending to Gemini (`src/components/PdfUpload.tsx:75`):
+
+```typescript
+const fileToBase64 = (f: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]); // strip data:...;base64, prefix
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(f);
+  });
+```
+
+## OCR via Gemini Vision API
+
+The `extractWithAI` function (`src/components/PdfUpload.tsx:137`) sends images to Gemini for OCR:
+
+```typescript
+const extractWithAI = async (content: string | string[], isImages: boolean): Promise<ExtractedContent> => {
+  if (!apiKey) {
+    throw new Error('API key required');
+  }
+
+  let parts: any[] = [];
+
+  if (isImages) {
+    // Convert base64 images to Gemini's inline_data format
+    parts = (content as string[]).map(base64 => ({
+      inline_data: {
+        mime_type: 'image/png',
+        data: base64
+      }
+    }));
+  }
+
+  const imageCount = isImages ? (content as string[]).length : 0;
+  parts.push({
+    text: `You are processing a handwritten civil services exam answer sheet (UPSC/JKPSC/State PSC style).${isImages ? ` You are given ${imageCount} page image${imageCount > 1 ? 's' : ''} that MAY have been uploaded in any order — do NOT assume the first image is the first page. Your tasks: (1) IDENTIFY THE QUESTION: scan ALL images and find the one containing the question — it is typically printed or typed text inside a box or bordered area...
+    
+Return a JSON object with this EXACT structure:
+{
+  "question": "The full question text",
+  "answer": "The full answer text"
+}
+...`
+  });
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+          temperature: 0.1,  // Very low for accurate transcription
+          maxOutputTokens: 16384,
+        },
+      }),
+    }
+  );
+};
+```
+
+### OCR Prompt Instructions
+
+The OCR prompt includes detailed instructions for:
+
+1. **Question Detection** - Scans all images to find the question (usually in a box/border)
+2. **Page Order Detection** - Looks for page numbers, "contd." markers, and paragraph continuity
+3. **Structure Preservation** - Maintains subheadings, bullet points, numbered lists, and paragraph breaks
+4. **Diagram/Map Tagging** - Inserts tags like `[DIAGRAM: Flowchart showing anti-defection process]` when visual elements are detected
+5. **Abbreviation Preservation** - Keeps abbreviations as-is (e.g., "MLAS", "SC", "A102")
+6. **Word Count Exclusion** - Removes "Word Count: X" lines that students write at the bottom
+
+### Response Parsing with Fallbacks
+
+The OCR response parser (`src/components/PdfUpload.tsx:220`) includes fallback strategies:
+
+```typescript
+let cleanedContent = textContent.trim();
+if (cleanedContent.startsWith('```json')) {
+  cleanedContent = cleanedContent.slice(7);
+} else if (cleanedContent.startsWith('```')) {
+  cleanedContent = cleanedContent.slice(3);
+}
+if (cleanedContent.endsWith('```')) {
+  cleanedContent = cleanedContent.slice(0, -3);
+}
+cleanedContent = cleanedContent.trim();
+
+try {
+  const result = JSON.parse(cleanedContent);
+  return { question: result.question || '', answer: result.answer || '' };
+} catch (parseError) {
+  // Try to extract question and answer using regex as fallback
+  const questionMatch = cleanedContent.match(/"question"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const answerMatch = cleanedContent.match(/"answer"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+
+  if (questionMatch || answerMatch) {
+    return {
+      question: questionMatch ? questionMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : '',
+      answer: answerMatch ? answerMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : ''
+    };
+  }
+
+  throw new Error('Could not parse AI response. Please try with a smaller PDF.');
+}
+```
+
+## Progress Tracking
+
+The app provides real-time progress updates during processing:
+
+```typescript
+const [progress, setProgress] = useState({ current: 0, total: 0, stage: '' });
+
+// During PDF conversion
+setProgress({ current: i, total: maxPages, stage: 'Converting pages' });
+
+// During image conversion
+setProgress({ current: i + 1, total: selectedFiles.length, stage: 'Converting images' });
+
+// During AI extraction
+setProgress({ current: 0, total: 1, stage: 'Extracting question & answer with AI' });
+```
+
+This shows a progress bar with percentage completion and stage description.
+
+## Error Handling
+
+The component handles errors at multiple levels:
+
+- **File validation errors** - File type, size, and mixed format checks
+- **PDF parsing errors** - Catches pdfjs-dist errors during text extraction
+- **OCR errors** - Catches Gemini API errors and shows user-friendly messages
+- **JSON parsing errors** - Fallback to regex extraction if JSON is malformed
+
+## Related Pages
+
+<CardGroup cols={2}>
+  <Card title="Gemini API Integration" icon="wand-magic-sparkles" href="/technical/gemini-api">
+    Learn how extracted text is sent to Gemini for evaluation
+  </Card>
+  <Card title="Storage" icon="database" href="/technical/storage">
+    Understand how evaluation results are stored locally
+  </Card>
+</CardGroup>

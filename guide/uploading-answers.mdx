@@ -1,0 +1,209 @@
+---
+title: Uploading Answer Sheets
+description: Learn how to upload PDFs and images for AI-powered evaluation
+---
+
+The JKPSC Answer Evaluator accepts both PDF documents and image files. The AI will automatically extract the question and your answer from the uploaded content.
+
+## Supported File Formats
+
+<CardGroup cols={2}>
+  <Card title="PDF Documents" icon="file-pdf">
+    Single PDF file containing your answer sheet
+    - Max file size: **10MB**
+    - Can include multiple pages
+  </Card>
+  
+  <Card title="Images" icon="image">
+    Multiple images (JPG, PNG, or WebP)
+    - Max file size: **10MB per image**
+    - Upload multiple pages as separate images
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Important:** Do not mix PDFs and images in a single upload. Choose either a PDF or images, not both together.
+</Warning>
+
+## How to Upload Files
+
+<Steps>
+  <Step title="Prepare Your Answer Sheet">
+    Ensure your answer sheet includes both:
+    - **The question** (typically printed/typed in a box or bordered area)
+    - **Your handwritten answer** (the full response you want evaluated)
+    
+    <Note>
+      Each upload should contain **one question and one answer**. The AI needs both to perform an accurate evaluation.
+    </Note>
+  </Step>
+  
+  <Step title="Choose Your Upload Method">
+    You have two options:
+    
+    **Option 1: Drag and Drop**
+    - Drag your PDF or image files directly onto the upload area
+    - The border will highlight when files are ready to drop
+    
+    **Option 2: Click to Browse**
+    - Click anywhere in the upload area
+    - Select files from your device's file picker
+  </Step>
+  
+  <Step title="Confirm Your Upload">
+    After selecting files, you'll see:
+    - The filename and size for PDF uploads
+    - A preview grid for multiple images (with reordering option)
+    
+    Click the **"Process with AI"** button to begin extraction.
+  </Step>
+</Steps>
+
+## Uploading Multiple Image Pages
+
+When uploading multiple images (e.g., answer sheets spanning several pages), you can reorder them before processing:
+
+<Accordion title="How to reorder images">
+  1. After selecting multiple images, a preview grid appears
+  2. **Drag and drop** images to reorder them into the correct sequence
+  3. **Remove** any unwanted images using the X button on each thumbnail
+  4. Click **"Process X images with AI"** when ready
+</Accordion>
+
+<Tip>
+  **The AI is smart about page order:** Even if images are uploaded out of order, the AI attempts to identify the correct reading sequence by looking for page numbers, "contd." markers, and logical content flow.
+</Tip>
+
+## Understanding the AI Extraction Process
+
+After you upload your files, the AI performs several steps:
+
+### Step 1: File Processing
+
+<Tabs>
+  <Tab title="PDF Files">
+    The system first attempts to extract text directly from the PDF:
+    - If sufficient text is found (≥50 characters), it proceeds to AI extraction
+    - If the PDF is image-based or text extraction fails, it converts each page to an image (up to 10 pages)
+    
+    You'll see a progress indicator: **"Converting pages: Page X of Y"**
+  </Tab>
+  
+  <Tab title="Image Files">
+    Images are converted to base64 format for transmission to the Gemini API:
+    - The conversion happens for each image
+    - Progress is shown: **"Converting images: X of Y"**
+  </Tab>
+</Tabs>
+
+### Step 2: AI Extraction
+
+The Gemini AI analyzes your content to:
+
+1. **Identify the question** by looking for:
+   - Printed or typed text in a box/border
+   - Directive sentences ("Discuss...", "Evaluate...", "Critically examine...")
+   - Mark allocations ("10 marks", "[15]")
+
+2. **Extract your answer** by:
+   - Reading all handwritten content
+   - Preserving structure (headings, bullet points, numbered lists)
+   - Recognizing diagrams, tables, and maps
+   - Excluding word counts and struck-through text
+
+<Note>
+  The extraction process typically takes **10-30 seconds** depending on the number of pages and content complexity.
+</Note>
+
+## Reviewing Extracted Content
+
+Once extraction is complete, you'll see two editable text areas:
+
+### Extracted Question
+- Shows the identified question text
+- Click to edit if the AI missed anything or needs correction
+
+### Extracted Answer
+- Shows your complete answer with preserved formatting
+- Displays word count at the bottom
+- Click to edit if needed
+
+<Warning>
+  **If the answer appears empty:**
+  
+  You'll see a warning: "⚠ Answer appears empty — paste or type the answer below to enable evaluation"
+  
+  This can happen if:
+  - The handwriting is very difficult to read
+  - The image quality is too low
+  - The PDF is encrypted or protected
+  
+  You can manually type or paste the answer to proceed with evaluation.
+</Warning>
+
+## Special Content Recognition
+
+The AI recognizes and preserves special content:
+
+<Accordion title="Diagrams & Visual Elements">
+  When your answer includes diagrams, the AI inserts descriptive tags:
+  
+  - **Diagrams:** `[DIAGRAM: Flowchart showing anti-defection process under 10th Schedule]`
+  - **Tables:** `[TABLE: 3×2 — comparing Speaker's role in Lok Sabha vs State Assemblies]`
+  - **Maps:** `[MAP: Outline map of India marking states with anti-defection cases]`
+  - **Timelines:** `[TIMELINE: Floor test controversies 2018–2023]`
+  
+  These tags tell the evaluator that you included visual elements in your answer.
+</Accordion>
+
+## Common Upload Issues
+
+<AccordionGroup>
+  <Accordion title='"File is too large" error'>
+    Each file must be under 10MB. Try:
+    - Compressing your PDF using online tools
+    - Reducing image resolution before uploading
+    - Splitting multi-page PDFs into smaller sections
+  </Accordion>
+  
+  <Accordion title='"File format not supported" error'>
+    Only these formats are accepted:
+    - PDF: `.pdf`
+    - Images: `.jpg`, `.jpeg`, `.png`, `.webp`
+    
+    Convert other formats (like HEIC or BMP) to supported types before uploading.
+  </Accordion>
+  
+  <Accordion title='"Please add your Gemini API key first" error'>
+    You must configure your API key before uploading files. See [Setting Up Your Account](/guide/setup).
+  </Accordion>
+  
+  <Accordion title="AI extraction failed">
+    If extraction fails:
+    1. Check that your files contain readable text/images
+    2. Verify your API key is valid
+    3. Try uploading a smaller PDF (reduce to ≤10 pages)
+    4. Manually enter the question and answer if automatic extraction fails
+  </Accordion>
+</AccordionGroup>
+
+## Starting an Evaluation
+
+After reviewing the extracted content:
+
+1. Optionally select a **subject** (GS1, GS2, GS3, GS4, or Essay) from the dropdown
+2. Set the **marks** for the question (defaults to 10)
+3. Click the **"Evaluate Answer"** button
+
+The AI will begin the evaluation process, which takes 10-20 seconds. You'll see a loading indicator with the message: **"AI is evaluating your answer..."**
+
+<Tip>
+  Want to evaluate another answer? Click the **X** button next to the filename to clear the current upload and start fresh.
+</Tip>
+
+## Next Steps
+
+Once your answer is evaluated:
+- Learn how to [interpret the evaluation results](/guide/understanding-evaluations)
+- Review scores, feedback, and improvement tips
+- Track your progress over time

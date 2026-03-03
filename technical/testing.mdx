@@ -1,0 +1,388 @@
+---
+title: Testing
+description: Run tests and understand the testing strategy for the JKPSC Answer Evaluator
+---
+
+The JKPSC Answer Evaluator uses Vitest with React Testing Library to ensure code quality and prevent regressions. This guide covers running tests and understanding the test suite.
+
+## Running Tests
+
+### Run All Tests
+
+Execute the entire test suite once:
+
+<CodeGroup>
+```bash Bun (Recommended)
+bun run test
+```
+
+```bash npm
+npm run test
+```
+
+```bash yarn
+yarn test
+```
+
+```bash pnpm
+pnpm test
+```
+</CodeGroup>
+
+### Watch Mode
+
+Run tests in watch mode for active development:
+
+<CodeGroup>
+```bash Bun (Recommended)
+bun run test:watch
+```
+
+```bash npm
+npm run test:watch
+```
+
+```bash yarn
+yarn test:watch
+```
+
+```bash pnpm
+pnpm test:watch
+```
+</CodeGroup>
+
+<Note>
+Watch mode automatically re-runs tests when files change, perfect for TDD workflows.
+</Note>
+
+## Test Configuration
+
+### Vitest Setup
+
+The test environment is configured in `vitest.config.ts`:
+
+```typescript
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+  },
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "./src") },
+  },
+});
+```
+
+**Key settings:**
+
+- **Environment**: `jsdom` - Simulates a browser environment
+- **Globals**: Enabled - Use `describe`, `it`, `expect` without imports
+- **Setup**: `src/test/setup.ts` - Runs before each test file
+- **Path alias**: `@/` resolves to `src/`
+
+### Test Setup File
+
+The `src/test/setup.ts` file configures the test environment:
+
+```typescript
+import "@testing-library/jest-dom";
+
+// Mock matchMedia for components using media queries
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => {},
+  }),
+});
+```
+
+This setup:
+
+- Imports `@testing-library/jest-dom` for extended matchers
+- Mocks `window.matchMedia` for responsive component testing
+
+## Test Suite Overview
+
+The test suite includes **59 tests** across 5 test files, covering critical application logic.
+
+### Test Files
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `example.test.ts` | 1 | Smoke test to verify test setup |
+| `jsonRepair.test.ts` | 11 | JSON parsing and repair utilities |
+| `gsIdentify.test.ts` | 12 | Subject/topic identification logic |
+| `promptBuilder.test.ts` | 26 | AI prompt generation and 70% ceiling |
+| `useEvalHistory.test.ts` | 9 | Evaluation history CRUD operations |
+
+### 1. Smoke Test (`example.test.ts`)
+
+Basic test to verify the testing infrastructure works:
+
+```typescript
+import { describe, it, expect } from "vitest";
+
+describe("example", () => {
+  it("should pass", () => {
+    expect(true).toBe(true);
+  });
+});
+```
+
+### 2. JSON Repair Tests (`jsonRepair.test.ts`)
+
+Tests the AI response parsing pipeline that handles:
+
+- **Markdown fence stripping**: Removes ` ```json ` wrappers
+- **Bracket balancing**: Auto-repairs unclosed `{` and `[` characters
+- **Fallback parsing**: Regex extraction when JSON is malformed
+
+**Why it matters**: Gemini API responses can be truncated or malformed. These utilities ensure robust parsing.
+
+### 3. Subject Identification Tests (`gsIdentify.test.ts`)
+
+Tests keyword matching functions that determine which rubric to use:
+
+- `identifyGS1Block()` - Identifies Art & Culture, History, Geography, or Society
+- `identifyGS2Section()` - Polity, Governance, International Relations, Social Justice
+- `identifyGS3Section()` - Economy, Science & Tech, Environment, Security
+- `identifyGS4Section()` - Ethics theory, thinkers, case studies
+
+**Example test**:
+
+```typescript
+it('should identify polity questions', () => {
+  expect(identifyGS2Section('Discuss the role of the Election Commission'))
+    .toBe('polity')
+})
+```
+
+### 4. Prompt Builder Tests (`promptBuilder.test.ts`)
+
+The largest test suite (26 tests) covering:
+
+- **70% scoring ceiling**: Ensures `overallScore ≤ floor(marks × 0.7)`
+- **JSON field validation**: Checks all required fields are present in prompts
+- **Rubric injection**: Verifies correct rubrics are used per subject
+- **Question/answer inclusion**: Confirms user input is properly embedded
+- **Mark allocation**: Tests 10/15/20/125 mark variants
+
+**Key imports**:
+
+```typescript
+import { buildPrompt, EvaluationParams } from '@/lib/gemini'
+```
+
+**Example test**:
+
+```typescript
+it('enforces 70% ceiling for 10-mark questions', () => {
+  const params: EvaluationParams = {
+    subject: 'GS1',
+    marks: 10,
+    question: 'Test question',
+    answer: 'Test answer'
+  }
+  const prompt = buildPrompt(params)
+  expect(prompt).toContain('overallScore: 7') // 70% of 10
+})
+```
+
+### 5. Evaluation History Tests (`useEvalHistory.test.ts`)
+
+Tests the `useEvalHistory` hook with mocked IndexedDB:
+
+- **CRUD operations**: Add, retrieve, delete evaluations
+- **Percentage calculation**: Score-to-percentage conversion
+- **Question truncation**: Long questions are trimmed for display
+- **Import/export**: JSON import with merge and replace modes
+
+**Mocking strategy**:
+
+```typescript
+vi.mock('@/lib/historyDb', () => ({
+  getAllEntries: vi.fn(),
+  putEntry: vi.fn(),
+  deleteEntryById: vi.fn(),
+  clearAllEntries: vi.fn()
+}))
+```
+
+**Why mock?** IndexedDB is asynchronous and browser-specific. Mocking ensures fast, reliable tests.
+
+## What's Tested
+
+### Core Logic
+
+- AI prompt generation for all subjects (GS1-4, Essay)
+- Scoring ceiling enforcement (70% maximum)
+- Subject/topic identification from question text
+- JSON parsing with error recovery
+
+### Data Layer
+
+- IndexedDB CRUD operations (mocked)
+- Evaluation history management
+- Import/export functionality
+
+### Not Tested
+
+The following areas are **not currently covered** by automated tests:
+
+- UI components (PdfUpload, EvaluationResults, etc.)
+- Gemini API integration (requires API key)
+- PDF extraction with pdfjs-dist
+- Web Worker execution
+- Service Worker caching
+
+<Info>
+Future iterations may add component tests and E2E tests using Playwright.
+</Info>
+
+## Writing New Tests
+
+### Test File Structure
+
+Follow this pattern for new test files:
+
+```typescript
+import { describe, it, expect } from 'vitest'
+import { functionToTest } from '@/lib/myModule'
+
+describe('MyModule', () => {
+  describe('functionToTest', () => {
+    it('should handle normal case', () => {
+      const result = functionToTest('input')
+      expect(result).toBe('expected')
+    })
+
+    it('should handle edge case', () => {
+      const result = functionToTest('')
+      expect(result).toBe('fallback')
+    })
+  })
+})
+```
+
+### Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Descriptive Names" icon="tag">
+    Use `it('should ...')` format for clarity
+  </Card>
+  <Card title="Arrange-Act-Assert" icon="list-check">
+    Structure tests: setup → execute → verify
+  </Card>
+  <Card title="One Assertion" icon="check">
+    Test one behavior per `it()` block
+  </Card>
+  <Card title="Mock External Deps" icon="plug">
+    Use `vi.mock()` for IndexedDB, API calls, etc.
+  </Card>
+</CardGroup>
+
+### Example: Testing a Utility Function
+
+```typescript
+import { describe, it, expect } from 'vitest'
+import { calculatePercentage } from '@/lib/utils'
+
+describe('calculatePercentage', () => {
+  it('should calculate percentage correctly', () => {
+    expect(calculatePercentage(7, 10)).toBe(70)
+    expect(calculatePercentage(15, 20)).toBe(75)
+  })
+
+  it('should handle zero max score', () => {
+    expect(calculatePercentage(5, 0)).toBe(0)
+  })
+
+  it('should round to two decimals', () => {
+    expect(calculatePercentage(1, 3)).toBe(33.33)
+  })
+})
+```
+
+## Continuous Integration
+
+To run tests in CI/CD pipelines:
+
+```yaml
+# Example GitHub Actions workflow
+- name: Run tests
+  run: bun run test
+```
+
+<Note>
+Tests run in headless mode by default—no browser window required.
+</Note>
+
+## Debugging Tests
+
+### Verbose Output
+
+Add `--reporter=verbose` for detailed output:
+
+```bash
+bun run test --reporter=verbose
+```
+
+### Run Specific Test File
+
+```bash
+bun run test src/test/promptBuilder.test.ts
+```
+
+### Run Tests Matching Pattern
+
+```bash
+bun run test --grep "70% ceiling"
+```
+
+### Debug in VS Code
+
+Add this configuration to `.vscode/launch.json`:
+
+```json
+{
+  "type": "node",
+  "request": "launch",
+  "name": "Debug Vitest Tests",
+  "runtimeExecutable": "bun",
+  "runtimeArgs": ["run", "test:watch"],
+  "console": "integratedTerminal"
+}
+```
+
+## Test Coverage
+
+To generate coverage reports (requires additional setup):
+
+```bash
+bun run test --coverage
+```
+
+<Warning>
+Coverage tooling for Bun + Vitest is still maturing. You may need to install `@vitest/coverage-v8`.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree" href="/technical/project-structure">
+    Understand the codebase architecture
+  </Card>
+  <Card title="Local Setup" icon="terminal" href="/technical/local-setup">
+    Set up your development environment
+  </Card>
+</CardGroup>

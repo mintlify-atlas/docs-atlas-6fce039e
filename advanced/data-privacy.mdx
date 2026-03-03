@@ -1,0 +1,625 @@
+---
+title: 'Data Privacy & Security'
+description: 'Complete client-side processing with no server storage - your API key and evaluations never leave your browser'
+icon: 'shield-halved'
+---
+
+## Privacy-First Architecture
+
+The JKPSC Answer Evaluator is designed with **zero-server architecture**. Everything runs in your browser:
+
+<CardGroup cols={2}>
+  <Card title="Client-Side Only" icon="browser">
+    All processing happens in your browser. No backend server receives or stores your data.
+  </Card>
+  <Card title="Your API Key" icon="key">
+    Your Gemini API key is stored in browser localStorage, never transmitted to any server except Google's Gemini API.
+  </Card>
+  <Card title="Local Storage" icon="database">
+    Evaluation history is stored in browser IndexedDB - unlimited entries, never synced to cloud.
+  </Card>
+  <Card title="No Analytics" icon="shield-check">
+    No tracking, no analytics, no cookies beyond essential localStorage.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+### 1. API Key Storage
+
+<Steps>
+  <Step title="Enter Your API Key">
+    When you enter your Gemini API key, it's stored in browser `localStorage` as plain JSON:
+
+    ```json
+    {
+      "mode": "plain",
+      "key": "AIzaSy..."
+    }
+    ```
+
+    **Storage location:** `localStorage['gemini_api_key']`
+  </Step>
+
+  <Step title="Local Validation">
+    The app validates the key format client-side (checks for `AIza` prefix). No server call is made during validation.
+  </Step>
+
+  <Step title="Direct API Calls">
+    When you evaluate an answer, your browser makes a **direct HTTPS request** to:
+
+    ```
+https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=YOUR_API_KEY
+    ```
+
+    The request goes **browser → Google Gemini API**, bypassing any intermediary server.
+  </Step>
+</Steps>
+
+<Warning>
+**Legacy Format Migration**
+
+Older versions used PIN-encrypted storage. If detected on load, the app automatically clears it and prompts you to re-enter your key. The `src/lib/crypto.ts` encryption module has been removed.
+</Warning>
+
+### 2. PDF & Image Processing
+
+<Tabs>
+  <Tab title="PDF Extraction">
+    **Library:** `pdfjs-dist` (Mozilla's PDF.js)
+
+    **Process:**
+    1. File is read by browser's `FileReader` API
+    2. PDF.js Web Worker extracts text page-by-page (runs in-browser, not on server)
+    3. Extracted text is sent to Gemini API for question/answer splitting
+
+    **Privacy:**
+    - PDF never uploaded to any server
+    - Text extraction happens entirely in browser memory
+    - Only extracted text (not the PDF) is sent to Gemini for transcription
+
+    ```typescript
+    // From src/components/PdfUpload.tsx
+    import * as pdfjsLib from 'pdfjs-dist';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.mjs',
+      import.meta.url
+    ).toString();
+
+    // Worker runs in-browser, not on remote server
+    ```
+  </Tab>
+
+  <Tab title="Image OCR">
+    **Service:** Google Gemini Vision API (`gemini-2.5-flash`)
+
+    **Process:**
+    1. Image is read as base64 by browser's `FileReader`
+    2. Base64 string sent directly to Gemini Vision API
+    3. API returns extracted text (question + answer)
+
+    **Privacy:**
+    - Image is base64-encoded in your browser
+    - Sent **directly** to Google (not through our server)
+    - Not stored by Google beyond the API call (per Google's API terms)
+
+    **Multi-Image Reordering:**
+    - Image staging (drag-to-reorder) happens purely in React state
+    - No upload to server during staging
+    - Once confirmed, images are processed in order
+  </Tab>
+</Tabs>
+
+<Info>
+**Max File Size:** 10MB per file (enforced client-side, not server-side)
+</Info>
+
+### 3. Evaluation History Storage
+
+**Storage:** Browser IndexedDB (via `idb` package)
+
+**Database Schema:**
+
+```typescript
+// From src/lib/historyDb.ts
+interface JkpscDB extends DBSchema {
+  evaluations: {
+    key: string;          // entry.id
+    value: HistoryEntry;  // Full evaluation result
+    indexes: {
+      by_timestamp: number;
+      by_subject: string;
+    };
+  };
+}
+```
+
+**What's Stored:**
+
+```typescript
+interface HistoryEntry {
+  id: string;                    // Unique ID (timestamp + random)
+  timestamp: number;             // When evaluated
+  subject: string;               // GS1/GS2/GS3/GS4/Essay
+  marks: number;                 // 10/15/20/125
+  question: string;              // First 200 chars of question
+  score: number;                 // Overall score achieved
+  maxScore: number;              // Max possible score
+  percentage: number;            // Calculated percentage
+  result: EvaluationResult;      // Full evaluation object
+}
+```
+
+**Privacy Guarantees:**
+
+<AccordionGroup>
+  <Accordion title="Where is IndexedDB stored?">
+    IndexedDB is a browser-native database stored on your device:
+
+    - **Chrome/Edge:** `%LocalAppData%\Google\Chrome\User Data\Default\IndexedDB` (Windows)
+    - **Firefox:** `%AppData%\Mozilla\Firefox\Profiles\{profile}\storage\default` (Windows)
+    - **Safari:** `~/Library/Safari/Databases` (macOS)
+
+    It's **not synced** to any cloud unless you explicitly enable browser sync (which is browser-level, not app-level).
+  </Accordion>
+
+  <Accordion title="Can the app creators see my history?">
+    **No.** IndexedDB is local to your browser. The app creators have zero access to it. There is no server, API endpoint, or telemetry service that receives your history.
+  </Accordion>
+
+  <Accordion title="What about localStorage migration?">
+    On first load, the app checks for legacy localStorage data (`jkpscprep_eval_history`). If found:
+
+    1. Data is migrated to IndexedDB
+    2. localStorage key is deleted
+    3. Migration is one-time, automatic, and local
+
+    No network call is made during migration.
+  </Accordion>
+
+  <Accordion title="Can I export my history?">
+    Yes! The app has an **Export JSON** feature that creates a JSON file on your device. You can:
+
+    - Download it to your local disk
+    - Back it up manually
+    - Import it on another browser/device using **Import JSON**
+
+    This export/import is entirely local (browser → file system → browser).
+  </Accordion>
+</AccordionGroup>
+
+### 4. Evaluation Worker (Web Worker)
+
+To keep the UI responsive, evaluations run in a Web Worker:
+
+```typescript
+// From src/workers/evaluationWorker.ts
+self.onmessage = async (e: MessageEvent) => {
+  const { apiKey, prompt, marks } = e.data;
+
+  // Fetch runs in worker context (still browser-side)
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ /* ... */ })
+    }
+  );
+
+  // Parse and return result to main thread
+  self.postMessage({ type: 'result', result: parsedResult });
+};
+```
+
+**Privacy:**
+- Worker runs in your browser (same-origin policy)
+- Fallback to main thread if Web Workers unsupported (privacy-focused browsers)
+- No server involved in worker spawning or execution
+
+## Network Activity Breakdown
+
+<Steps>
+  <Step title="App Load">
+    **What Happens:**
+    - HTML, CSS, JS files loaded from CDN/hosting (Vercel, Netlify, etc.)
+    - Service Worker registered (if PWA installed)
+
+    **Privacy:**
+    - Static asset delivery only
+    - No analytics, tracking scripts, or third-party cookies
+  </Step>
+
+  <Step title="PDF/Image Upload">
+    **What Happens:**
+    - File read by browser's FileReader API
+    - For images: base64 sent to `generativelanguage.googleapis.com`
+    - For PDFs: text extracted locally, then sent to Gemini
+
+    **Privacy:**
+    - No upload to app's servers
+    - Direct communication with Google Gemini API only
+  </Step>
+
+  <Step title="Answer Evaluation">
+    **What Happens:**
+    - Prompt built client-side (see `src/lib/gemini.ts`)
+    - POST request to `generativelanguage.googleapis.com`
+    - Response parsed and displayed
+
+    **Privacy:**
+    - Your API key used directly (not proxied)
+    - Question and answer sent to Google Gemini API
+    - Response returned to your browser, not stored on any server
+  </Step>
+
+  <Step title="History Save">
+    **What Happens:**
+    - Evaluation result saved to IndexedDB
+    - No network call made
+
+    **Privacy:**
+    - Purely local operation
+    - No sync to cloud
+  </Step>
+</Steps>
+
+<Tip>
+**Verify Zero-Server Architecture**
+
+You can verify this yourself:
+
+1. Open browser DevTools → Network tab
+2. Evaluate an answer
+3. Check network requests:
+   - You'll see only `generativelanguage.googleapis.com` calls
+   - No requests to `jkpscprep.com` or any backend API
+</Tip>
+
+## What Google Gemini API Receives
+
+<Warning>
+**Third-Party Service Disclosure**
+
+While the app itself stores no data, you are using **Google's Gemini API** as a third-party service. Here's what Google receives:
+</Warning>
+
+### Data Sent to Google:
+
+1. **Your API Key** (in URL query parameter)
+2. **Question Text**
+3. **Answer Text**
+4. **System Prompt** (evaluation rubric and instructions)
+
+### Google's Data Retention:
+
+Per [Google's API Terms](https://ai.google.dev/gemini-api/terms) (as of March 2026):
+
+- API requests are **not used to train models**
+- Data is retained for **up to 30 days** for abuse prevention
+- After 30 days, data is deleted
+
+<Info>
+**Your API Key, Your Control**
+
+Since you're using your own API key, you have a direct relationship with Google. You can:
+
+- Review your API usage in Google Cloud Console
+- Delete your API key anytime
+- Monitor API calls and quotas
+</Info>
+
+## Service Worker & PWA Caching
+
+The app registers a Service Worker for offline functionality:
+
+```javascript
+// From public/sw.js
+self.addEventListener('fetch', (event) => {
+  // Cache-first for app assets
+  if (event.request.url.includes(self.location.origin)) {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request);
+      })
+    );
+  }
+  
+  // Network-only for Gemini API
+  if (event.request.url.includes('generativelanguage.googleapis.com')) {
+    event.respondWith(fetch(event.request));
+  }
+});
+```
+
+**What's Cached:**
+- App shell (HTML, CSS, JS)
+- Static assets (logo, icons)
+- **Not cached:** Gemini API responses
+
+**Privacy:**
+- Cache is local (browser Cache API)
+- No cloud sync
+- Can be cleared via browser settings
+
+## GDPR & Data Subject Rights
+
+<AccordionGroup>
+  <Accordion title="Right to Access">
+    **Your Data Location:**
+    - API Key: `localStorage['gemini_api_key']`
+    - History: IndexedDB `jkpscprep` database
+
+    **How to Access:**
+    1. Open DevTools → Application → Local Storage
+    2. Open DevTools → Application → IndexedDB → jkpscprep
+
+    Alternatively, use the app's **Export JSON** feature.
+  </Accordion>
+
+  <Accordion title="Right to Erasure">
+    **How to Delete:**
+
+    **API Key:**
+    - Click "Remove" in the API Key Manager
+    - Or manually: DevTools → Application → Local Storage → Delete `gemini_api_key`
+
+    **History:**
+    - Click "Clear All History" in the app
+    - Or manually: DevTools → Application → IndexedDB → Delete `jkpscprep` database
+
+    **Complete Erasure:**
+    - Clear browser data for `jkpscprep.com` in browser settings
+  </Accordion>
+
+  <Accordion title="Right to Portability">
+    Use the **Export JSON** feature to download all your evaluation history in machine-readable JSON format.
+
+    You can then:
+    - Import into another browser
+    - Parse with scripts
+    - Back up manually
+  </Accordion>
+
+  <Accordion title="Right to Rectification">
+    Since all data is local, you have full control:
+
+    - Edit evaluation history by deleting and re-evaluating
+    - Change API key anytime
+    - Modify exported JSON before re-import
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+<CardGroup cols={2}>
+  <Card title="API Key Security" icon="key">
+    **Risk:** API key stored in plain localStorage can be accessed by:
+    - Browser extensions
+    - XSS attacks (if any)
+
+    **Mitigation:**
+    - App uses strict CSP (Content Security Policy)
+    - No third-party scripts
+    - Review browser extensions carefully
+
+    **Best Practice:**
+    - Use a separate API key for this app
+    - Set usage quotas in Google Cloud Console
+    - Rotate keys periodically
+  </Card>
+
+  <Card title="HTTPS Enforcement" icon="lock">
+    The app is served over HTTPS, ensuring:
+    - Encrypted communication with Gemini API
+    - Protection against man-in-the-middle attacks
+
+    **Verify:** Check for padlock icon in browser address bar
+  </Card>
+
+  <Card title="No Third-Party Scripts" icon="shield-check">
+    The app loads **zero** third-party tracking/analytics:
+    - No Google Analytics
+    - No Facebook Pixel
+    - No ad networks
+    - No telemetry services
+
+    Only dependencies:
+    - React (UI framework)
+    - Vite (build tool)
+    - shadcn/ui (UI components)
+    - pdfjs-dist (PDF parsing)
+    - idb (IndexedDB wrapper)
+  </Card>
+
+  <Card title="Content Security Policy" icon="shield-halved">
+    Strict CSP prevents:
+    - Inline script execution
+    - Third-party script injection
+    - Unsafe eval()
+
+    **Configured in:** Hosting platform (Vercel/Netlify headers)
+  </Card>
+</CardGroup>
+
+## Comparison: Server-Based vs Client-Side
+
+| Aspect | Traditional (Server-Based) | JKPSC Evaluator (Client-Side) |
+|--------|----------------------------|-------------------------------|
+| **API Key Storage** | Server database | Your browser localStorage |
+| **Evaluation Processing** | Backend server | Your browser + Gemini API |
+| **History Storage** | Centralized database | Your browser IndexedDB |
+| **Data Access** | App creators can access | Only you can access |
+| **Privacy Risk** | Server breach exposes all users | Local breach affects only you |
+| **Network Calls** | Browser → App Server → Gemini | Browser → Gemini (direct) |
+| **Data Deletion** | Request app to delete | Delete browser data instantly |
+| **Portability** | Export feature (if provided) | Export JSON anytime |
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="Why not use a backend server for convenience?">
+    **Privacy First.** By design, we prioritize your privacy over convenience features like cloud sync. With a backend server:
+
+    - Your API key would be stored on our servers (security risk)
+    - Your questions and answers would be logged (privacy risk)
+    - We'd become a data controller under GDPR (compliance burden)
+
+    Client-side architecture means **you** remain in control of your data.
+  </Accordion>
+
+  <Accordion title="Can I use this app offline?">
+    **Partially.** If you install as a PWA:
+
+    - App shell works offline (UI loads)
+    - PDF upload and history browsing work
+    - **Evaluation requires internet** (needs Gemini API call)
+
+    You cannot evaluate answers fully offline since the AI model runs on Google's servers.
+  </Accordion>
+
+  <Accordion title="What if I switch browsers or devices?">
+    Your data is local to each browser. To migrate:
+
+    1. Export JSON from Browser A
+    2. Import JSON into Browser B
+
+    This is manual, but ensures **zero cloud dependency**.
+  </Accordion>
+
+  <Accordion title="Can I trust that the code doesn't send data to a server?">
+    **Verify Yourself!** The source code is open and auditable:
+
+    1. Visit [GitHub Repository](https://github.com/jkpscprep/evaluator) *(example link - replace with actual if open-source)*
+    2. Check `src/lib/gemini.ts` for API calls
+    3. Verify no backend API endpoints exist
+
+    Additionally:
+    - Use browser DevTools → Network tab during evaluation
+    - You'll see only `generativelanguage.googleapis.com` requests
+  </Accordion>
+
+  <Accordion title="What happens if localStorage/IndexedDB is cleared?">
+    If you clear browser data:
+
+    - **API Key:** Lost, must re-enter
+    - **History:** Lost, unless you exported JSON beforehand
+
+    **Prevention:**
+    - Export JSON regularly as backup
+    - Exclude site data when clearing browser cache
+  </Accordion>
+</AccordionGroup>
+
+## Technical Implementation
+
+For developers curious about the privacy implementation:
+
+<CodeGroup>
+```typescript API Key Storage (src/components/ApiKeyManager.tsx)
+// Plain localStorage, no encryption
+const saveKey = (key: string) => {
+  localStorage.setItem('gemini_api_key', JSON.stringify({
+    mode: 'plain',
+    key
+  }));
+};
+
+const loadKey = (): string | null => {
+  const raw = localStorage.getItem('gemini_api_key');
+  if (!raw) return null;
+  
+  const data = JSON.parse(raw);
+  
+  // Handle legacy formats
+  if (typeof data === 'string') return data;
+  if (data.mode === 'plain') return data.key;
+  if (data.mode === 'encrypted') {
+    // Old encrypted format - clear it
+    localStorage.removeItem('gemini_api_key');
+    return null;
+  }
+};
+```
+
+```typescript IndexedDB History (src/lib/historyDb.ts)
+import { openDB, type IDBPDatabase } from 'idb';
+
+const DB_NAME = 'jkpscprep';
+const STORE = 'evaluations';
+
+// Open database (creates if doesn't exist)
+function getDb(): Promise<IDBPDatabase<JkpscDB>> {
+  return openDB<JkpscDB>(DB_NAME, 1, {
+    upgrade(db) {
+      const store = db.createObjectStore(STORE, { keyPath: 'id' });
+      store.createIndex('by_timestamp', 'timestamp');
+      store.createIndex('by_subject', 'subject');
+    },
+  });
+}
+
+// Save entry (purely local)
+export async function putEntry(entry: HistoryEntry): Promise<void> {
+  const db = await getDb();
+  await db.put(STORE, entry);
+  // No network call made
+}
+```
+
+```typescript Direct API Call (src/lib/gemini.ts)
+export async function evaluateAnswer(params: EvaluationParams) {
+  const prompt = buildPrompt(params);
+  
+  // Direct fetch to Google, no proxy
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${params.apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 65536
+        }
+      })
+    }
+  );
+  
+  return await response.json();
+}
+```
+</CodeGroup>
+
+## Conclusion
+
+<Check>
+**Privacy Guarantee Summary**
+
+- ✅ Zero-server architecture
+- ✅ API key stored locally (plain localStorage)
+- ✅ Evaluation history in browser IndexedDB
+- ✅ Direct communication with Google Gemini API only
+- ✅ No tracking, analytics, or telemetry
+- ✅ Export/import for data portability
+- ✅ Full user control over data deletion
+</Check>
+
+<Warning>
+**Third-Party Dependency**
+
+You are using **Google's Gemini API**. While we don't store your data, Google processes it per their API terms (30-day retention for abuse prevention, not used for training).
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Evaluation Rubrics" icon="clipboard-check" href="/advanced/evaluation-rubrics">
+    Detailed rubrics for each subject
+  </Card>
+  <Card title="Scoring Methodology" icon="calculator" href="/advanced/scoring-methodology">
+    Understand how scores are calculated
+  </Card>
+</CardGroup>

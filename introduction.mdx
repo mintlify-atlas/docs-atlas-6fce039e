@@ -1,0 +1,197 @@
+---
+title: JKPSC Answer Evaluator
+description: AI-powered UPSC/JKPSC Mains answer evaluation using Google Gemini API. Get instant detailed feedback with scoring, analysis, and improvement tips.
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="JKPSC Answer Evaluator Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="JKPSC Answer Evaluator Hero Dark"
+/>
+
+## Welcome to JKPSC Answer Evaluator
+
+The **JKPSC Answer Evaluator** is a free, client-side AI tool that evaluates your UPSC/JKPSC Mains answers using Google's Gemini API. Upload your answer PDF, select the subject and marks, and receive comprehensive AI-powered feedback in seconds.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get your first evaluation in under 2 minutes
+  </Card>
+  <Card
+    title="Features"
+    icon="sparkles"
+    href="/features"
+  >
+    Explore all features and capabilities
+  </Card>
+  <Card
+    title="Subjects & Rubrics"
+    icon="book-open"
+    href="/subjects/general-studies-1"
+  >
+    Explore subject-specific evaluation criteria
+  </Card>
+  <Card
+    title="Technical Documentation"
+    icon="code"
+    href="/technical/architecture"
+  >
+    Learn about architecture and development
+  </Card>
+</CardGroup>
+
+## Why JKPSC Answer Evaluator?
+
+<AccordionGroup>
+  <Accordion icon="shield-check" title="100% Private & Secure">
+    Your data is processed entirely in your browser. We never store your answers, API keys, or evaluation results on any server. Everything stays on your device.
+  </Accordion>
+
+  <Accordion icon="brain" title="AI-Powered Analysis">
+    Powered by Google Gemini 2.5 Flash, the evaluator uses advanced AI to analyze your answers against UPSC topper benchmarks with subject-specific rubrics for GS1, GS2, GS3, GS4, and Essay.
+  </Accordion>
+
+  <Accordion icon="gauge-high" title="Strict UPSC Standards">
+    The evaluator enforces a **70% scoring ceiling** (60-65% is Rank-1 level in UPSC). It penalizes generic answers and rewards technical depth with specific articles, cases, committees, and data.
+  </Accordion>
+
+  <Accordion icon="bolt" title="Lightning Fast">
+    Get comprehensive evaluations in 10-30 seconds using Web Workers for non-blocking processing. Upload PDF or multiple images with automatic OCR.
+  </Accordion>
+
+  <Accordion icon="chart-line" title="Track Your Progress">
+    Built-in evaluation history with IndexedDB storage. View trends, filter by subject, export/import data, and monitor your improvement over time.
+  </Accordion>
+
+  <Accordion icon="money-bill-1" title="Completely Free">
+    Use your own free Google Gemini API key (1500 requests/day on free tier). No subscriptions, no hidden costs, no limits.
+  </Accordion>
+</AccordionGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Get Your Free API Key">
+    Visit [Google AI Studio](https://aistudio.google.com/app/apikey) and generate a free Gemini API key. The free tier includes 1500 requests per day.
+  </Step>
+
+  <Step title="Upload Your Answer">
+    Upload a PDF or multiple images (JPG/PNG/WebP) containing your question and answer. The AI automatically extracts both using OCR.
+  </Step>
+
+  <Step title="Select Subject & Marks">
+    Choose from:
+    - **GS1** (10/15 marks) — Art & Culture, History, Society, Geography
+    - **GS2** (10/15 marks) — Polity, Governance, Social Justice, International Relations
+    - **GS3** (10/15 marks) — Economy, Science & Tech, Environment, Internal Security
+    - **GS4** (10/20 marks) — Ethics, Integrity, Aptitude
+    - **Essay** (125 marks) — 4-section framework evaluation
+  </Step>
+
+  <Step title="Get Detailed Feedback">
+    Receive a comprehensive evaluation with:
+    - Overall score and percentage
+    - Category-wise breakdown (4 categories)
+    - Key points covered vs missing
+    - Improvement tips (5 specific suggestions)
+    - Model answer structure
+    - Strengths analysis
+  </Step>
+</Steps>
+
+## Tech Stack
+
+Built with modern web technologies for optimal performance:
+
+<CardGroup cols={3}>
+  <Card title="React + TypeScript" icon="react">
+    Type-safe UI components with modern React patterns
+  </Card>
+  <Card title="Vite" icon="bolt">
+    Lightning-fast build tool and dev server
+  </Card>
+  <Card title="Tailwind CSS" icon="paintbrush">
+    Utility-first styling with shadcn/ui components
+  </Card>
+  <Card title="Google Gemini API" icon="brain">
+    Advanced AI evaluation using Gemini 2.5 Flash
+  </Card>
+  <Card title="PDF.js" icon="file-pdf">
+    Client-side PDF text extraction and OCR
+  </Card>
+  <Card title="IndexedDB" icon="database">
+    Local storage for evaluation history
+  </Card>
+</CardGroup>
+
+## What Makes It Special?
+
+### Subject-Specific Rubrics
+
+Each subject has dedicated evaluation criteria:
+
+- **GS1**: PESTEL+ multidimensional analysis with maps/diagrams emphasis
+- **GS2**: IC5 structure (Introduction → Context → Current Relevance → Conclusion) with constitutional anchoring
+- **GS3**: Data-driven frameworks with policy/institutional references
+- **GS4**: Behavioral ethics with administrative pragmatism
+- **Essay**: 4-section framework (Structure, PESTEL+, Thematic Depth, Expression)
+
+### Topper Benchmarking
+
+Answers are evaluated against real UPSC topper standards:
+
+- Must mention specific **Articles** (14, 15, 21, 38, 51A, etc.)
+- Reference **Committees** (2nd ARC, Sachar, Mandal, Kasturirangan)
+- Cite **Case Laws** (Puttaswamy, Sabrimala, Vishaka, Bommai)
+- Include **Data** (reports, statistics, frameworks)
+- Use **Technical Terms** specific to each subject
+
+### Intelligent OCR
+
+The AI automatically:
+
+- Identifies the question (even if on any image, not just the first)
+- Determines the correct reading order for multi-page answers
+- Preserves structure (subheadings, bullet points, numbered lists)
+- Detects diagrams, tables, and maps with inline tags
+- Handles both printed questions and handwritten answers
+
+<Note>
+  **Privacy First**: Your API key is stored only in your browser's localStorage. All processing happens client-side. We never see your answers or API key.
+</Note>
+
+## Get Started
+
+Ready to evaluate your first answer?
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Follow our step-by-step guide to get your first evaluation in under 2 minutes
+</Card>
+
+## Open Source
+
+This project is fully open source. View the code, report issues, or contribute:
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/muhsinwtf/jkspc-evaluator">
+    View source code and contribute
+  </Card>
+  <Card title="Report Issues" icon="bug" href="https://github.com/muhsinwtf/jkspc-evaluator/issues">
+    Found a bug? Let us know
+  </Card>
+</CardGroup>
+
+---
+
+<Info>
+  **Visit us**: [www.jkpscprep.com](https://www.jkpscprep.com) | **Join our community**: [Telegram](https://t.me/jkpscprepp)
+</Info>

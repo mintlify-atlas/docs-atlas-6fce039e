@@ -1,0 +1,125 @@
+---
+title: Setting Up Your Account
+description: Configure your Gemini API key and get started with JKPSC Answer Evaluator
+---
+
+Before you can start evaluating your answers, you need to configure your Google Gemini API key. The key is stored locally in your browser and never sent to our servers.
+
+## Getting Your Free Gemini API Key
+
+<Steps>
+  <Step title="Visit Google AI Studio">
+    Go to [Google AI Studio](https://aistudio.google.com/app/apikey) and sign in with your Google account.
+  </Step>
+  
+  <Step title="Create an API Key">
+    Click the **"Create API Key"** button. Google will generate a new API key for you instantly.
+    
+    <Note>
+      The Gemini API offers a generous free tier that's perfect for evaluating UPSC/JKPSC answers. You won't need to provide payment information for basic usage.
+    </Note>
+  </Step>
+  
+  <Step title="Copy Your Key">
+    Copy the generated API key to your clipboard. It will look something like:
+    ```
+    AIzaSyD...your-key-here...xyz123
+    ```
+  </Step>
+</Steps>
+
+## Adding Your API Key to the App
+
+Once you have your API key, you'll need to add it to the JKPSC Answer Evaluator:
+
+<Steps>
+  <Step title="Locate the API Key Manager">
+    When you first open the app, you'll see the **"Gemini API Key"** card at the top of the page. This is where you'll configure your key.
+    
+    <Tip>
+      The card displays a key icon and confirms that "Your API key is stored locally and never sent to our servers."
+    </Tip>
+  </Step>
+  
+  <Step title="Enter Your API Key">
+    Paste your API key into the input field. By default, the key is masked for security, but you can click the eye icon to toggle visibility.
+  </Step>
+  
+  <Step title="Save the Key">
+    Click the **"Save API Key"** button. You'll see a green checkmark and the message **"API key configured"** when it's successfully saved.
+  </Step>
+</Steps>
+
+## Managing Your API Key
+
+### Viewing Your Stored Key
+
+Once saved, your API key is displayed in a masked format:
+```
+AIzaSyD...••••••••••••••••••••...xyz123
+```
+
+Click the eye icon to reveal or hide the full key at any time.
+
+### Changing Your API Key
+
+<Accordion title="How to update your API key">
+  1. Click the **"Change Key"** button below your saved API key
+  2. Enter your new API key in the input field
+  3. Click **"Save API Key"** to update
+  4. You can click **"Cancel"** if you change your mind
+</Accordion>
+
+### Removing Your API Key
+
+<Warning>
+  Removing your API key will prevent you from uploading and evaluating new answers until you add a new key.
+</Warning>
+
+To remove your API key:
+1. Click the red **"Remove"** button (trash icon)
+2. Your key will be deleted from local storage immediately
+3. The input form will reappear, allowing you to add a new key
+
+## Understanding the Interface
+
+After configuring your API key, you'll see the main evaluation interface:
+
+### Main Components
+
+<CardGroup cols={2}>
+  <Card title="Upload Answer Sheet" icon="file-text">
+    The upload area where you'll submit your PDF or image files containing questions and answers.
+  </Card>
+  
+  <Card title="Evaluation Results" icon="chart-bar">
+    After processing, detailed evaluation results appear here with scores, feedback, and improvement tips.
+  </Card>
+  
+  <Card title="Recent Evaluations" icon="history">
+    Your evaluation history is saved locally, allowing you to review past submissions and track progress.
+  </Card>
+  
+  <Card title="Progress Dashboard" icon="trending-up">
+    Visual charts showing your performance trends across subjects over time.
+  </Card>
+</CardGroup>
+
+## Privacy & Data Storage
+
+<Note>
+  **Your privacy is protected:**
+  - Your API key is stored in your browser's local storage only
+  - Question and answer content is sent directly to Google's Gemini API for evaluation
+  - Our servers never see your API key or evaluation content
+  - All evaluation history is stored locally on your device
+</Note>
+
+You can export your evaluation history at any time using the **"Export"** button in the Recent Evaluations section.
+
+## Next Steps
+
+Now that your API key is configured, you're ready to:
+- [Upload your first answer sheet](/guide/uploading-answers)
+- Learn how to [interpret evaluation results](/guide/understanding-evaluations)
+- Start [tracking your progress](/guide/tracking-progress)

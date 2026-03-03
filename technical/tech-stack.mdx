@@ -1,0 +1,535 @@
+---
+title: Technology Stack
+description: Complete breakdown of all technologies, libraries, and dependencies used in the JKPSC Answer Evaluator
+---
+
+## Overview
+
+The JKPSC Answer Evaluator is built with modern web technologies, prioritizing client-side performance, type safety, and developer experience.
+
+## Core Technologies
+
+### Build Tool & Runtime
+
+<CodeGroup>
+```json package.json (versions)
+{
+  "vite": "^5.4.19",
+  "@vitejs/plugin-react-swc": "^3.11.0",
+  "typescript": "^5.8.3"
+}
+```
+
+```bash Installation
+# Using bun (required)
+bun install
+
+# Dev server
+bun run dev
+
+# Build
+bun run build
+
+# Tests
+bun run test
+```
+</CodeGroup>
+
+**Vite 5** - Lightning-fast build tool
+- ESM-native development server
+- Hot Module Replacement (HMR)
+- Optimized production builds
+- SWC for faster React compilation
+
+**bun** - Package manager and runtime
+- Faster than npm/yarn
+- All package operations use `bun add`, `bun remove`
+
+<Warning>
+Do NOT use npm or yarn. This project requires bun for consistent dependency resolution.
+</Warning>
+
+### Framework & Language
+
+| Technology | Version | Purpose |
+|------------|---------|----------|
+| **React** | 18.3.1 | UI framework |
+| **react-dom** | 18.3.1 | DOM rendering |
+| **TypeScript** | 5.8.3 | Type safety |
+| **react-router-dom** | 6.30.1 | Client-side routing (/, *) |
+
+All components are written in `.tsx` (TypeScript + JSX).
+
+## UI & Styling
+
+### Design System
+
+```json package.json (UI libraries)
+{
+  "tailwindcss": "^3.4.17",
+  "tailwindcss-animate": "^1.0.7",
+  "tailwind-merge": "^2.6.0",
+  "class-variance-authority": "^0.7.1",
+  "clsx": "^2.1.1"
+}
+```
+
+**Tailwind CSS v3** - Utility-first styling
+- Custom keyframes in `tailwind.config.ts`
+- Dark mode support via class strategy
+- `@tailwindcss/typography` for rich text rendering
+
+**shadcn/ui** - Component library
+- All components in `src/components/ui/`
+- Built on Radix UI primitives
+- Fully customizable, copy-paste components
+
+### Radix UI Primitives
+
+Complete set of 30+ accessible components:
+
+```json package.json (selection)
+{
+  "@radix-ui/react-accordion": "^1.2.11",
+  "@radix-ui/react-dialog": "^1.1.14",
+  "@radix-ui/react-dropdown-menu": "^2.1.15",
+  "@radix-ui/react-progress": "^1.1.7",
+  "@radix-ui/react-select": "^2.2.5",
+  "@radix-ui/react-tabs": "^1.1.12",
+  "@radix-ui/react-toast": "^1.2.14",
+  "@radix-ui/react-tooltip": "^1.2.7"
+}
+```
+
+<Info>
+All Radix components are unstyled primitives. Styling is applied via Tailwind classes in shadcn/ui wrappers.
+</Info>
+
+## Animation Libraries
+
+### GSAP (GreenSock Animation Platform)
+
+```json package.json
+{
+  "gsap": "^3.14.2",
+  "@gsap/react": "^2.1.2"
+}
+```
+
+**Use cases:**
+- Hero section entrance animations
+- Scroll-triggered reveals (ScrollTrigger plugin)
+- Evaluate button hover/click effects
+- Score card animations
+
+```typescript
+// src/lib/gsap.ts - Registration
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
+
+gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+export { gsap, ScrollTrigger, useGSAP, prefersReducedMotion };
+```
+
+### Motion (Framer Motion v12)
+
+```json package.json
+{
+  "motion": "^12.34.3"
+}
+```
+
+<Warning>
+**Breaking change from Framer Motion:** Import from `motion/react`, NOT `framer-motion`.
+</Warning>
+
+**Magic UI components using motion:**
+- `ScrollProgress` - `useScroll` hook
+- `MagicCard` - `useMotionValue` for pointer tracking
+- `NumberTicker` - `useSpring` + `useInView`
+
+### Magic UI Components
+
+Custom animated components in `src/components/ui/`:
+
+| Component | Purpose | Dependencies |
+|-----------|---------|-------------|
+| `shimmer-button.tsx` | Animated evaluate button | CSS keyframes |
+| `magic-card.tsx` | Mouse-tracking gradient card | motion/react |
+| `animated-shiny-text.tsx` | Light-glare text animation | CSS keyframes |
+| `scroll-progress.tsx` | Fixed top progress bar | motion/react |
+| `number-ticker.tsx` | Spring-animated score counter | motion/react |
+| `dot-pattern.tsx` | Background SVG pattern | React |
+| `confetti.tsx` | Celebration confetti | canvas-confetti |
+
+**Custom Tailwind keyframes** (from `tailwind.config.ts`):
+
+```javascript
+keyframes: {
+  'shimmer-slide': {
+    '0%, 100%': { transform: 'translateX(-100%)' },
+    '50%': { transform: 'translateX(100%)' },
+  },
+  'spin-around': {
+    '0%': { transform: 'rotate(0deg)' },
+    '100%': { transform: 'rotate(360deg)' },
+  },
+  'shiny-text': {
+    '0%, 100%': { backgroundPosition: '200% center' },
+    '50%': { backgroundPosition: '0% center' },
+  },
+}
+```
+
+## PDF & Document Processing
+
+### PDF Extraction
+
+```json package.json
+{
+  "pdfjs-dist": "^5.4.624"
+}
+```
+
+**pdfjs-dist** - In-browser PDF parsing (Mozilla's PDF.js library)
+
+- Runs in Web Worker for non-blocking extraction
+- Extracts text page-by-page
+- Configured via `import.meta.url` pattern
+
+```typescript
+// src/components/PdfUpload.tsx
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
+```
+
+### PDF Generation
+
+```json package.json
+{
+  "@react-pdf/renderer": "included via @json-render/react-pdf",
+  "@json-render/core": "^0.11.0",
+  "@json-render/react-pdf": "^0.11.0"
+}
+```
+
+**Lazy-loaded** - Only imported when user clicks "Download PDF Report"
+
+```typescript
+// Lazy import in Index.tsx
+const { downloadPdf } = await import('@/lib/pdfGenerator');
+await downloadPdf({ result, subject, marks, question, answer });
+```
+
+**PDF Report includes:**
+- Header with logo (base64 embedded)
+- Score card with color-coded scores
+- Category breakdown table
+- Key points analysis (covered ✓ / missing ✗)
+- Improvement tips (numbered list)
+- Model answer structure
+- Footer with branding
+
+## AI & API Integration
+
+### Google Gemini API
+
+**Direct REST API calls** (no SDK) to:
+
+```
+https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+```
+
+**Models used:**
+
+| Use Case | Model | Config |
+|----------|-------|--------|
+| **Answer evaluation** | `gemini-3-flash-preview` | temp: 0.3, maxTokens: 65536 |
+| **Image transcription** | `gemini-2.5-flash` | Vision API for handwriting OCR |
+
+**Key features:**
+- No backend proxy - API key stored in localStorage
+- Web Worker execution keeps UI responsive
+- Fallback to main thread if Worker unavailable
+- 3-stage JSON repair (direct parse → auto-repair → regex extraction)
+
+## Data Management
+
+### IndexedDB
+
+```json package.json
+{
+  "idb": "^8.0.3"
+}
+```
+
+**idb** - Promise-based IndexedDB wrapper by Jake Archibald
+
+```typescript
+// src/lib/historyDb.ts
+import { openDB, DBSchema } from 'idb';
+
+interface JKPSCPrepDB extends DBSchema {
+  evaluations: {
+    key: string;
+    value: HistoryEntry;
+    indexes: {
+      'by_timestamp': number;
+      'by_subject': string;
+    };
+  };
+}
+
+const db = await openDB<JKPSCPrepDB>('jkpscprep', 1, { ... });
+```
+
+**Exported functions:**
+- `getAllEntries()` - Fetch all eval history
+- `putEntry(entry)` - Save new evaluation
+- `deleteEntryById(id)` - Remove single entry
+- `clearAllEntries()` - Wipe all history
+- `getFilteredEntries(filter)` - Subject/date filtering
+- `countEntries()` - Total count
+
+<Info>
+The old `jkpscprep_eval_history` localStorage key is auto-migrated to IndexedDB on first load.
+</Info>
+
+### Form Management
+
+```json package.json
+{
+  "react-hook-form": "^7.61.1",
+  "@hookform/resolvers": "^3.10.0",
+  "zod": "^3.25.76"
+}
+```
+
+- **react-hook-form** - Performant form state management
+- **zod** - Schema validation
+- **@hookform/resolvers** - Zod integration for forms
+
+## Drag & Drop
+
+```json package.json
+{
+  "@dnd-kit/core": "^6.3.1",
+  "@dnd-kit/sortable": "^10.0.0",
+  "@dnd-kit/utilities": "^3.2.2"
+}
+```
+
+**@dnd-kit** - Modern drag-and-drop toolkit
+
+**Used in:** `SortableImageGrid.tsx`
+- Reorder multi-image uploads
+- Accessible keyboard support
+- Touch-friendly mobile interaction
+
+```typescript
+// src/components/SortableImageGrid.tsx
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+```
+
+## Data Visualization
+
+```json package.json
+{
+  "recharts": "^2.15.4"
+}
+```
+
+**recharts** - React charting library built on D3
+
+**Used in:** `ProgressDashboard.tsx` (visible when history ≥ 2 entries)
+
+- **Line Chart** - Score trend over time per subject
+- **Bar Chart** - Average + best score per subject with 70% reference line
+
+```typescript
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+```
+
+## Utilities & Helpers
+
+### UI Utilities
+
+```json package.json
+{
+  "lucide-react": "^0.462.0",
+  "canvas-confetti": "^1.9.4",
+  "date-fns": "^3.6.0"
+}
+```
+
+- **lucide-react** - Icon library (1000+ icons)
+- **canvas-confetti** - Celebration confetti effects
+- **date-fns** - Date formatting and manipulation
+
+### Component Utilities
+
+```json package.json
+{
+  "embla-carousel-react": "^8.6.0",
+  "react-resizable-panels": "^2.1.9",
+  "cmdk": "^1.1.1",
+  "vaul": "^0.9.9"
+}
+```
+
+- **embla-carousel-react** - Carousel/slider component
+- **react-resizable-panels** - Resizable panel layouts
+- **cmdk** - Command palette (⌘K menu)
+- **vaul** - Drawer component for mobile
+
+## Testing
+
+### Test Framework
+
+```json package.json
+{
+  "vitest": "^4.0.18",
+  "@testing-library/react": "^16.0.0",
+  "@testing-library/jest-dom": "^6.6.0",
+  "jsdom": "^20.0.3"
+}
+```
+
+**vitest** - Vite-native test runner
+- Fast execution with Vite's transform pipeline
+- Compatible with Jest API
+- `jsdom` environment for DOM testing
+
+**Test suites:**
+
+| File | Tests | Coverage |
+|------|-------|---------|
+| `jsonRepair.test.ts` | 11 | `stripFences`, `balanceBrackets`, `repairAndParse` |
+| `gsIdentify.test.ts` | 12 | `identifyGS[1-4]Block/Section` keyword routing |
+| `promptBuilder.test.ts` | 26 | 70% ceiling, JSON fields, rubric injection |
+| `useEvalHistory.test.ts` | 9 | Hook CRUD, import merge/replace (mocked IndexedDB) |
+
+```bash
+# Run all tests
+bun run test
+
+# Watch mode
+bun run test:watch
+```
+
+## Development Tools
+
+### Linting & Code Quality
+
+```json package.json
+{
+  "eslint": "^9.32.0",
+  "@eslint/js": "^9.32.0",
+  "eslint-plugin-react-hooks": "^5.2.0",
+  "eslint-plugin-react-refresh": "^0.4.20",
+  "typescript-eslint": "^8.38.0"
+}
+```
+
+### Styles
+
+```json package.json
+{
+  "autoprefixer": "^10.4.21",
+  "postcss": "^8.5.6"
+}
+```
+
+PostCSS with Autoprefixer for vendor prefix management.
+
+## Intentionally NOT Used
+
+<Warning>
+The following packages are installed but **not actively used** - they were removed during optimization:
+</Warning>
+
+- **@tanstack/react-query** (v5.83.0) - `QueryClientProvider` removed from `App.tsx`
+- **sonner** (v1.7.4) - `<Sonner />` component removed, using shadcn `<Toaster />` instead
+- **next-themes** (v0.3.0) - Manual dark mode implementation in `Index.tsx`
+
+## Browser Compatibility
+
+```json package.json
+{
+  "caniuse-lite": "^1.0.30001774",
+  "baseline-browser-mapping": "^2.10.0"
+}
+```
+
+**Minimum requirements:**
+- ES2020+ features (async/await, optional chaining, nullish coalescing)
+- IndexedDB support
+- Web Workers support
+- Service Workers support (for PWA)
+- CSS custom properties (CSS variables)
+
+**Target browsers:**
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Mobile browsers (iOS Safari 14+, Chrome Android 90+)
+
+## Dependency Graph Summary
+
+```mermaid
+graph TD
+    A[React 18.3.1] --> B[react-dom]
+    A --> C[react-router-dom]
+    
+    D[TypeScript 5.8.3] --> E[Vite 5.4.19]
+    E --> F[@vitejs/plugin-react-swc]
+    
+    G[Tailwind CSS 3.4.17] --> H[tailwindcss-animate]
+    G --> I[PostCSS + Autoprefixer]
+    
+    J[Radix UI] --> K[shadcn/ui components]
+    K --> L[class-variance-authority]
+    K --> M[tailwind-merge]
+    
+    N[GSAP 3.14.2] --> O[@gsap/react]
+    P[motion 12.34.3] --> Q[Magic UI components]
+    
+    R[pdfjs-dist 5.4.624] --> S[PDF extraction]
+    T[@json-render/react-pdf] --> U[PDF generation]
+    
+    V[idb 8.0.3] --> W[historyDb.ts]
+    X[recharts 2.15.4] --> Y[ProgressDashboard]
+    
+    Z[vitest 4.0.18] --> AA[@testing-library/react]
+```
+
+## Version Management
+
+<Note>
+All dependencies use `^` (caret) versioning - minor/patch updates are allowed.
+</Note>
+
+**Critical version locks:**
+- React 18.3.1 (not React 19 yet - stability)
+- motion 12.x (breaking changes from Framer Motion 11)
+- pdfjs-dist 5.4.x (worker compatibility)
+- Tailwind 3.4.x (v4 in alpha)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/technical/architecture">
+    Understand the overall application structure and data flow
+  </Card>
+  <Card title="Client-Side Processing" icon="microchip" href="/technical/client-side-processing">
+    Learn how everything runs in the browser without a backend
+  </Card>
+</CardGroup>

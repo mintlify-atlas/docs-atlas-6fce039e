@@ -1,0 +1,238 @@
+---
+title: Project Structure
+description: Understand the directory organization and architecture of the JKPSC Answer Evaluator codebase
+---
+
+The JKPSC Answer Evaluator follows a modular, component-based architecture. This guide explains the purpose of each directory and key files.
+
+## Overview
+
+This is a **fully client-side** React + TypeScript SPA built with Vite. All AI processing happens in the browser using the user's own Gemini API key—no backend required.
+
+## Directory Layout
+
+```
+src/
+├── App.tsx                      # Root component with providers and router
+├── main.tsx                     # React DOM entry point
+├── index.css / App.css          # Global styles and Tailwind directives
+│
+├── pages/
+│   ├── Index.tsx                # Main application page (all user flow)
+│   └── NotFound.tsx             # 404 error page
+│
+├── components/
+│   ├── ApiKeyManager.tsx        # Gemini API key management
+│   ├── SubjectMarksSelector.tsx # Subject and marks selection
+│   ├── PdfUpload.tsx            # File upload, PDF/image processing
+│   ├── EvaluationResults.tsx   # Tabbed evaluation results display
+│   ├── EvalHistory.tsx          # Evaluation history with import/export
+│   ├── ProgressDashboard.tsx    # Charts for score trends and averages
+│   ├── SortableImageGrid.tsx    # Drag-and-drop image reordering
+│   ├── ErrorBoundary.tsx        # React error boundary
+│   ├── TelegramPopup.tsx        # One-time promotional popup
+│   └── ui/                      # shadcn/ui and Magic UI components
+│       ├── shimmer-button.tsx
+│       ├── magic-card.tsx
+│       ├── scroll-progress.tsx
+│       └── [40+ other components]
+│
+├── hooks/
+│   ├── useEvalHistory.ts        # IndexedDB CRUD for evaluation history
+│   └── use-toast.ts             # Toast notification hook
+│
+├── lib/
+│   ├── gemini.ts                # ★ Core AI evaluation logic
+│   ├── historyDb.ts             # IndexedDB wrapper using idb package
+│   ├── crypto.ts                # Web Crypto utilities
+│   ├── pdfGenerator.tsx         # PDF report generation (lazy-loaded)
+│   ├── gsap.ts                  # GSAP animation setup
+│   ├── logoBase64.ts            # Base64 logo for PDFs
+│   └── utils.ts                 # Utility functions (cn, etc.)
+│
+├── workers/
+│   └── evaluationWorker.ts      # Web Worker for off-thread AI calls
+│
+├── test/
+│   ├── example.test.ts          # Smoke test
+│   ├── jsonRepair.test.ts       # JSON parsing utilities
+│   ├── gsIdentify.test.ts       # Subject identification tests
+│   ├── promptBuilder.test.ts    # Prompt generation tests
+│   ├── useEvalHistory.test.ts   # History hook tests
+│   └── setup.ts                 # Test environment setup
+│
+└── data/
+    ├── rubrics.ts               # Generic evaluation rubrics
+    ├── keyPoints.ts             # Shared reference key points
+    ├── questionBank.ts          # Subject metadata and configuration
+    ├── gs1Rubrics.ts            # GS1-specific rubrics and rules
+    ├── gs1KeyPoints.ts          # GS1 reference points
+    ├── gs2Rubrics.ts            # GS2-specific rubrics
+    ├── gs2KeyPoints.ts
+    ├── gs3Rubrics.ts            # GS3-specific rubrics
+    ├── gs3KeyPoints.ts
+    ├── gs4Rubrics.ts            # GS4-specific rubrics
+    ├── gs4KeyPoints.ts
+    └── essayRubrics.ts          # Essay-specific evaluation rules
+```
+
+## Key Directories
+
+### `/pages`
+
+Contains route-level components. The main application logic lives in `Index.tsx`, which manages all state and orchestrates the evaluation flow.
+
+<Note>
+This project uses minimal routing—only `/` (Index) and `*` (NotFound) routes exist.
+</Note>
+
+### `/components`
+
+Reusable UI components organized by function:
+
+- **Feature components**: ApiKeyManager, PdfUpload, EvaluationResults, etc.
+- **UI components** (`/ui`): shadcn/ui primitives and Magic UI enhanced components
+
+### `/lib`
+
+Core business logic and utilities:
+
+- **`gemini.ts`**: The most critical file. Contains:
+  - `evaluateAnswer()` - Main evaluation function
+  - `buildPrompt()` - Subject-specific prompt generation
+  - AI response parsing and error handling
+  - 70% scoring ceiling enforcement
+
+- **`historyDb.ts`**: IndexedDB operations using the `idb` package
+- **`pdfGenerator.tsx`**: PDF report generation (lazy-loaded for performance)
+
+### `/workers`
+
+Web Workers for performance-critical operations:
+
+- **`evaluationWorker.ts`**: Runs Gemini API calls off the main thread to prevent UI blocking
+
+### `/data`
+
+Subject-specific evaluation criteria:
+
+- **Rubrics**: Detailed scoring matrices for each subject (GS1-4, Essay)
+- **Key Points**: Topic-wise reference points (must-mention terms, technical vocabulary, expected diagrams)
+- **Question Bank**: Subject metadata and valid mark allocations
+
+### `/test`
+
+Test suite covering:
+
+- JSON repair and parsing utilities (11 tests)
+- Subject identification logic (12 tests)
+- Prompt building with 70% ceiling (26 tests)
+- Evaluation history CRUD operations (9 tests)
+
+See the [Testing](/technical/testing) guide for details on running tests.
+
+## Important Files
+
+### Configuration Files
+
+| File | Purpose |
+|------|----------|
+| `vite.config.ts` | Vite build configuration and path aliases |
+| `vitest.config.ts` | Test environment setup (jsdom, globals) |
+| `tailwind.config.ts` | Tailwind CSS with custom animations |
+| `tsconfig.json` | TypeScript compiler options |
+
+### Public Assets
+
+```
+public/
+├── sw.js                # Service Worker for PWA caching
+├── site.webmanifest     # PWA manifest
+├── logo.png             # Application logo
+└── [favicon assets]
+```
+
+## Architecture Patterns
+
+### State Management
+
+All application state lives in `pages/Index.tsx`—**no global state library**. Key state includes:
+
+- `apiKey`: Gemini API key
+- `subject`: Selected subject (GS1-4, Essay)
+- `marks`: Mark allocation (10/15/20/125)
+- `extractedContent`: Question and answer text
+- `result`: Evaluation output
+- `isEvaluating`: Loading state
+
+### Data Flow
+
+```
+User Input → State Update → Component Re-render → IndexedDB Persistence
+                                ↓
+                          Gemini API Call (in Worker)
+                                ↓
+                          Result → State → UI Update
+```
+
+### Storage Strategy
+
+| Data | Storage | Purpose |
+|------|---------|----------|
+| API Key | localStorage | Plain JSON object |
+| Evaluation History | IndexedDB | Unlimited history entries |
+| Theme Preference | localStorage | Dark/light mode |
+| Popup State | localStorage | Telegram popup dismissal |
+
+### Animation Systems
+
+Two coexisting animation libraries:
+
+- **GSAP**: Page-level animations (hero entrance, scroll reveals, score cards)
+- **motion/react**: Component-level animations (Magic UI components)
+
+<Warning>
+Do not mix GSAP and motion on the same elements—they target different use cases.
+</Warning>
+
+## Path Aliases
+
+The project uses `@/` as an alias for the `src/` directory:
+
+```typescript
+import { Button } from '@/components/ui/button'
+import { evaluateAnswer } from '@/lib/gemini'
+import { useEvalHistory } from '@/hooks/useEvalHistory'
+```
+
+Configured in `vite.config.ts` and `tsconfig.json`.
+
+## Tech Stack Summary
+
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| Build Tool | Vite 5 | Fast HMR and optimized builds |
+| Framework | React 19 + TypeScript | TSX throughout |
+| Styling | Tailwind CSS v3 | Custom keyframes for animations |
+| Components | shadcn/ui | All in `src/components/ui/` |
+| Animations | GSAP + motion/react v12 | Separate use cases |
+| PDF Processing | pdfjs-dist | Browser-based extraction |
+| PDF Generation | @react-pdf/renderer | Lazy-loaded |
+| AI API | Google Gemini REST | Client-side calls only |
+| Routing | react-router-dom | Minimal routes |
+| Package Manager | Bun | Recommended over npm/yarn |
+| Testing | vitest + @testing-library/react | jsdom environment |
+| Database | IndexedDB (via idb@8) | Evaluation history |
+| Drag & Drop | @dnd-kit | Image reordering |
+| PWA | Service Worker | Cache-first for app shell |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="flask" href="/technical/testing">
+    Run tests and understand the test suite
+  </Card>
+  <Card title="Local Setup" icon="terminal" href="/technical/local-setup">
+    Set up your development environment
+  </Card>
+</CardGroup>

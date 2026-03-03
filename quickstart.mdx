@@ -1,80 +1,387 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get your first UPSC/JKPSC answer evaluation in under 2 minutes
 ---
 
-## Get started in three steps
+## Get Your First Evaluation in 2 Minutes
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through evaluating your first answer from start to finish.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Get Your Free Gemini API Key">
+    The evaluator uses Google's Gemini API to analyze your answers. You'll need a free API key.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+    ### How to Get Your API Key
+
+    1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+    2. Sign in with your Google account
+    3. Click **"Create API Key"**
+    4. Copy the generated key
+
+    <Note>
+      The free tier includes **1,500 requests per day** — more than enough for daily practice.
+    </Note>
+
+    ### Add Your API Key to the App
+
+    Once you have your key:
+
+    1. Open the JKPSC Answer Evaluator app
+    2. Find the **"Gemini API Key"** section
+    3. Paste your key in the input field
+    4. Click **"Save API Key"**
+
+    Your key is stored locally in your browser's `localStorage` and never sent to any server (except Google's Gemini API for evaluation).
+
+    ```typescript
+    // How the key is stored (from ApiKeyManager.tsx:43)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode: 'plain', key }));
+    ```
+
+    <Warning>
+      **Keep your API key secure**: Never share it publicly or commit it to version control.
+    </Warning>
+  </Step>
+
+  <Step title="Select Subject and Marks">
+    Choose the subject and question marks that match your answer.
+
+    ### Available Subjects
+
+    <Tabs>
+      <Tab title="GS1">
+        **General Studies Paper 1** — Indian Heritage, Culture, History, Society, Geography
+
+        **Marks Options**: 10 marks (~150 words) or 15 marks (~250 words)
+
+        **Evaluation Focus**:
+        - PESTEL+ multidimensional analysis
+        - Maps and diagrams emphasis
+        - Cultural/historical references
+        - Data-driven answers with specific dates, events, and movements
+      </Tab>
+
+      <Tab title="GS2">
+        **General Studies Paper 2** — Polity, Governance, Social Justice, International Relations
+
+        **Marks Options**: 10 marks (~150 words) or 15 marks (~250 words)
+
+        **Evaluation Focus**:
+        - IC5 structure (Introduction → Context → Current Relevance → Conclusion)
+        - Constitutional articles and case laws
+        - Committee reports and governance frameworks
+        - Power and law analysis
+      </Tab>
+
+      <Tab title="GS3">
+        **General Studies Paper 3** — Economy, Science & Technology, Environment, Internal Security
+
+        **Marks Options**: 10 marks (~150 words) or 15 marks (~250 words)
+
+        **Evaluation Focus**:
+        - Data and statistics
+        - Policy frameworks and institutions
+        - Technical vocabulary
+        - Economic/scientific analysis
+      </Tab>
+
+      <Tab title="GS4">
+        **General Studies Paper 4** — Ethics, Integrity, Aptitude
+
+        **Marks Options**: 10 marks (~150 words) or 20 marks (~250 words)
+
+        **Evaluation Focus**:
+        - Ethical theories and thinkers
+        - Administrative ethics application
+        - Case study analysis (for 20 markers)
+        - Behavioral dimensions (PESTEL+)
+      </Tab>
+
+      <Tab title="Essay">
+        **Essay Paper** — Multidimensional thematic essays
+
+        **Marks**: Fixed 125 marks (~1000-1200 words)
+
+        **Evaluation Focus**:
+        - 4-section framework (Structure, PESTEL+, Thematic Depth, Expression)
+        - Constitutional anchors and scholarly references
+        - Topper-level benchmarking
+        - Full-circle narrative
+      </Tab>
+    </Tabs>
+
+    ### How to Select
+
+    In the **"Subject & Marks"** card:
+
+    1. Click the **"Select Subject"** dropdown
+    2. Choose your subject (e.g., GS2 - Polity & Governance)
+    3. Click the **"Question Marks"** dropdown
+    4. Select the appropriate marks (10/15/20/125)
+
+    <Tip>
+      For Essay, marks are automatically set to 125.
+    </Tip>
+  </Step>
+
+  <Step title="Upload Your Answer Sheet">
+    Upload your answer as a PDF or multiple images. The AI will automatically extract both the question and your answer.
+
+    ### Supported Formats
+
+    - **PDF** files (up to 10MB)
+    - **Images** (JPG, PNG, WebP, up to 10MB each)
+    - **Multiple images** (for multi-page answers)
+
+    ### Upload Methods
+
+    **Option 1: Drag & Drop**
+
+    Drag your PDF or images directly into the upload area.
+
+    **Option 2: Click to Browse**
+
+    Click the upload area and select files from your device.
+
+    ### Multiple Image Upload
+
+    If you upload multiple images:
+
+    1. The app shows a **preview grid** of all images
+    2. **Drag to reorder** them in the correct sequence
+    3. Click **"Process X images with AI"** to continue
+
+    <Note>
+      The AI is smart enough to identify the question even if it's not on the first image, but ordering pages correctly improves accuracy.
+    </Note>
+
+    ### What Happens Next?
+
+    The app will:
+
+    1. **Extract text** from your PDF (using PDF.js)
+    2. **Convert to images** if text extraction yields less than 50 characters (handwritten answers)
+    3. **Send to Gemini AI** with a specialized OCR prompt
+    4. **Identify the question** (usually in a box or typed text)
+    5. **Extract your answer** (handwritten text with structure preserved)
+
+    Here's the actual extraction logic:
+
+    ```typescript
+    // From PdfUpload.tsx:157 - AI extraction prompt
+    const prompt = `You are processing a handwritten civil services exam answer sheet.
+    Your tasks:
+    (1) IDENTIFY THE QUESTION: scan ALL images and find the question
+    (2) DETERMINE READING ORDER of the answer pages
+    (3) OCR all handwritten text in the correct logical order
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    Return JSON:
+    {
+      "question": "The full question text",
+      "answer": "The full answer text"
+    }`;
+    ```
 
-### Step 2: Deploy your changes
+    ### Edit Extracted Content
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    After extraction, you can:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    - **Review** the extracted question and answer
+    - **Edit** either field if the AI missed anything
+    - **See word count** for your answer
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Warning>
+      **Upload one question at a time**: Each PDF/image set should contain only ONE question and its answer. Don't upload multiple questions together.
+    </Warning>
+  </Step>
 
-### Step 3: Go live
+  <Step title="Evaluate Your Answer">
+    Once you have:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    - ✅ Added your API key
+    - ✅ Selected subject and marks
+    - ✅ Uploaded and verified your answer
 
-## Next steps
+    Click the big **"Evaluate Answer"** button!
 
-Now that you have your docs running, explore these key features:
+    ### What Happens During Evaluation?
+
+    The evaluation runs in a **Web Worker** (background thread) to keep the UI responsive:
+
+    ```typescript
+    // From gemini.ts:514 - Worker-based evaluation
+    const worker = new Worker(
+      new URL('../workers/evaluationWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    worker.postMessage({ apiKey, prompt, marks });
+    ```
+
+    The AI:
+
+    1. **Analyzes your answer** against subject-specific rubrics
+    2. **Scores 4 categories** (e.g., Technical Depth, PESTEL+ Analysis, Visual Markers, Structure)
+    3. **Identifies key points** covered and missing
+    4. **Generates improvement tips**
+    5. **Creates a model answer structure**
+
+    Evaluation typically takes **10-30 seconds** depending on answer length.
+
+    <Tip>
+      Confetti animation plays on successful evaluation! 🎉
+    </Tip>
+  </Step>
+
+  <Step title="Review Your Results">
+    You'll receive a comprehensive evaluation with 5 tabs:
+
+    ### 1. Overall Score Card
+
+    - **Score**: e.g., 6.5/10 (65%)
+    - **Visual progress bar** with color-coded performance
+    - **Summary**: 2-3 sentence overview
+
+    ### 2. Category Breakdown
+
+    See your score for each evaluation category:
+
+    - **Technical Depth & Non-Negotiables** (e.g., 3/5 marks)
+    - **PESTEL+ Dimensional Analysis** (e.g., 2/3 marks)
+    - **Data, Reports & Visual Markers** (e.g., 1/3 marks)
+    - **Structure & Expression** (e.g., 3/4 marks)
+
+    Each includes **specific feedback** on what was done well and what was missing.
+
+    ### 3. Key Points Analysis
+
+    **Covered** (green section):
+    - Specific terms, articles, cases you mentioned
+    - Example: "Article 21", "Puttaswamy judgment", "2nd ARC recommendations"
+
+    **Missing** (red section):
+    - Critical points you should have included
+    - Example: "Article 14 equality dimension not discussed", "No mention of Sachar Committee"
+
+    ### 4. Strengths
+
+    What you did well:
+    - Example: "Good use of IC5 structure with clear introduction"
+    - Example: "Effective diagram showing stakeholder mapping"
+
+    ### 5. Improvement Tips
+
+    5 specific, actionable suggestions:
+    - Example: "Add Article 15(3) to strengthen gender equality dimension"
+    - Example: "Include Kasturirangan Committee report for environmental governance"
+
+    ### 6. Model Answer Structure
+
+    A 250-300 word blueprint showing:
+    - Ideal introduction with constitutional hook
+    - Body paragraphs with subheadings
+    - Key articles/cases/committees to mention
+    - Conclusion with way forward
+
+    ### Download PDF Report
+
+    Click **"Download PDF Report"** to save a formatted PDF with:
+    - Your question and answer
+    - Complete evaluation results
+    - All feedback and suggestions
+
+    ```typescript
+    // From EvaluationResults.tsx:71 - PDF generation
+    const { downloadPdf } = await import('@/lib/pdfGenerator');
+    await downloadPdf({ result, subject, marks, question, answer });
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Explore Features" icon="sparkles" href="/features">
+    Learn about evaluation history, progress tracking, and advanced features
+  </Card>
+  <Card title="Scoring Methodology" icon="calculator" href="/advanced/scoring-methodology">
+    Learn how scoring works and the evaluation criteria
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Tips for Best Results
+
+<AccordionGroup>
+  <Accordion icon="file-lines" title="Write Clear, Structured Answers">
+    - Use subheadings (e.g., INTRODUCTION, CHALLENGES, WAY FORWARD)
+    - Number your points for clarity
+    - Include diagrams/tables where relevant
+    - Mark them clearly so the AI can detect them
+  </Accordion>
+
+  <Accordion icon="book" title="Include Technical Terms">
+    - Mention specific **Articles** (e.g., Article 21, Article 14)
+    - Cite **Case Laws** (e.g., Vishaka Guidelines, Puttaswamy judgment)
+    - Reference **Committees** (e.g., 2nd ARC, Sachar Committee)
+    - Use **data** and statistics where possible
+  </Accordion>
+
+  <Accordion icon="image" title="Upload Quality Images">
+    - Ensure good lighting and focus
+    - Avoid shadows or glare
+    - Keep images under 10MB each
+    - Upload pages in the correct order
+  </Accordion>
+
+  <Accordion icon="pencil" title="Review Extracted Content">
+    - Always check the extracted question and answer
+    - Fix OCR errors before evaluating
+    - Add any missing content manually
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion icon="triangle-exclamation" title="API Key Error">
+    **Error**: "Invalid API key"
+
+    **Solution**:
+    - Verify you copied the full key from Google AI Studio
+    - Make sure there are no extra spaces
+    - Generate a new key if the old one expired
+  </Accordion>
+
+  <Accordion icon="hourglass" title="Evaluation Taking Too Long">
+    **Issue**: Evaluation stuck or very slow
+
+    **Solution**:
+    - Check your internet connection
+    - Ensure your answer isn't too long (>400 words for 15-markers)
+    - Try refreshing and evaluating again
+    - Worker timeout is 2 minutes — it will fallback to main thread
+  </Accordion>
+
+  <Accordion icon="file-slash" title="OCR Not Detecting Question/Answer">
+    **Issue**: Extracted content is empty or incorrect
+
+    **Solution**:
+    - Ensure the question is clearly visible (in a box or typed)
+    - Upload clearer images with better lighting
+    - Manually type the question/answer in the text areas
+    - Make sure images are in the correct order
+  </Accordion>
+
+  <Accordion icon="chart-line" title="Score Seems Too Low">
+    **Issue**: Score lower than expected
+
+    **Explanation**:
+    - The evaluator enforces a **70% ceiling** (7/10, 10.5/15)
+    - UPSC Rank-1 scores are typically 60-65%
+    - Generic answers without specific articles/cases are penalized
+    - Check "Missing" key points to see what you should add
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+  **Need Help?** Join our [Telegram community](https://t.me/jkpscprepp) or visit [jkpscprep.com](https://www.jkpscprep.com)
+</Info>

@@ -1,0 +1,333 @@
+---
+title: Tracking Your Progress
+description: Monitor performance trends, review past evaluations, and export your history
+---
+
+The JKPSC Answer Evaluator automatically saves all your evaluations locally, allowing you to track improvement over time and review past performance.
+
+## Recent Evaluations Section
+
+Every evaluation is saved in the **"Recent Evaluations"** history section:
+
+<img src="/images/history-section.png" alt="Recent evaluations list showing past submissions" />
+
+### What You'll See
+
+Each saved evaluation displays:
+
+- **Score badge:** Your score with color coding (green/orange/red)
+- **Subject tag:** The subject you selected (GS1, GS2, GS3, GS4, or Essay)
+- **Timestamp:** How long ago the evaluation was completed
+- **Question preview:** Truncated view of the question text
+
+### Viewing Past Evaluations
+
+<Steps>
+  <Step title="Find the evaluation">
+    Scroll through your Recent Evaluations list. By default, only the 3 most recent evaluations are shown.
+  </Step>
+  
+  <Step title="Expand the list (if needed)">
+    If you have more than 3 evaluations, click **"Show X more"** to expand the full list.
+  </Step>
+  
+  <Step title="Click the eye icon">
+    Hover over any evaluation to reveal action buttons, then click the **eye icon** to view the full evaluation results.
+  </Step>
+</Steps>
+
+The complete evaluation (all categories, feedback, tips, and model answer) will be displayed below, exactly as it appeared when first generated.
+
+<Tip>
+  You can re-download the PDF report for any past evaluation by viewing it and clicking **"Download PDF Report"**.
+</Tip>
+
+### Deleting Individual Evaluations
+
+To remove a specific evaluation:
+
+1. Hover over the evaluation entry
+2. Click the **trash icon** (red on hover)
+3. The evaluation is immediately deleted from local storage
+
+<Warning>
+  Deletions are permanent and cannot be undone. Consider exporting your history before deleting important evaluations.
+</Warning>
+
+## Progress Dashboard
+
+When you have **at least 2 evaluations**, the **Progress Dashboard** automatically appears:
+
+<img src="/images/progress-dashboard.png" alt="Progress dashboard with trend charts" />
+
+### Dashboard Controls
+
+The dashboard has two main views:
+
+<Tabs>
+  <Tab title="Score Trend (Line Chart)">
+    Shows your percentage scores over time, with each point representing one evaluation.
+    
+    **What it shows:**
+    - All evaluations in chronological order (oldest → newest)
+    - Separate colored lines for each subject (GS1, GS2, GS3, GS4, Essay)
+    - A **70% reference line** indicating the scoring ceiling
+    - X-axis: Date labels
+    - Y-axis: Percentage score (0-100%)
+    
+    **How to interpret:**
+    - Look for upward trends in specific subjects
+    - Scores clustering near 70% indicate strong consistent performance
+    - Dips may indicate harder topics or knowledge gaps
+  </Tab>
+  
+  <Tab title="By Subject (Bar Chart)">
+    Compares your **average** and **best** scores across subjects.
+    
+    **What it shows:**
+    - One bar group per subject
+    - Purple bar: Average score across all attempts
+    - Green bar: Best score achieved in that subject
+    - Number of attempts per subject
+    
+    **How to interpret:**
+    - Subjects with large gaps between average and best need consistency work
+    - Low average scores indicate subjects requiring more study/practice
+    - High best scores show your potential in that subject
+  </Tab>
+</Tabs>
+
+### Subject Color Coding
+
+Each subject has a distinct color in the charts:
+
+<CardGroup cols={3}>
+  <Card title="GS1" icon="book">
+    **Purple** — Indian Heritage, Culture, History, Geography
+  </Card>
+  
+  <Card title="GS2" icon="landmark">
+    **Blue** — Governance, Constitution, Polity, Social Justice
+  </Card>
+  
+  <Card title="GS3" icon="chart-line">
+    **Green** — Economy, Technology, Environment, Security
+  </Card>
+  
+  <Card title="GS4" icon="heart">
+    **Pink** — Ethics, Integrity, Aptitude
+  </Card>
+  
+  <Card title="Essay" icon="pen-tool">
+    **Orange** — Essay writing
+  </Card>
+</CardGroup>
+
+### Expanding and Collapsing the Dashboard
+
+By default, the dashboard may be collapsed to save space:
+
+- Click **"Show"** to expand and view charts
+- Click **"Hide"** to collapse the dashboard
+- Your preference is saved for the session
+
+## The 70% Reference Line
+
+Both chart views include a **70% reference line**:
+
+<Note>
+  **Why 70%?**
+  
+  In UPSC/JKPSC mains evaluations, scoring above 70% is extremely rare and indicates exceptional performance. This reference line helps you set realistic expectations:
+  
+  - **60-70%:** Very good performance, competitive score
+  - **50-60%:** Good attempt with room for improvement
+  - **Below 50%:** Needs significant work
+  
+  Consistently scoring 60%+ across subjects is an excellent goal.
+</Note>
+
+## Exporting Your History
+
+You can export all your evaluations as a JSON file for backup or sharing:
+
+<Steps>
+  <Step title="Click Export">
+    In the Recent Evaluations header, click the **"Export"** button (download icon).
+  </Step>
+  
+  <Step title="Save the file">
+    A JSON file named `jkpscprep-history-YYYY-MM-DD.json` will be downloaded to your device.
+  </Step>
+  
+  <Step title="Store safely">
+    Keep this file as a backup or share it with mentors for review.
+  </Step>
+</Steps>
+
+### What's in the Export File?
+
+The JSON file contains:
+
+- All evaluation results (scores, category breakdowns, feedback)
+- Question and answer text for each evaluation
+- Subject, marks, and timestamps
+- Complete metadata for recreation
+
+<Accordion title="Sample export structure">
+  ```json
+  [
+    {
+      "id": "eval_1234567890123",
+      "timestamp": 1234567890123,
+      "subject": "GS2",
+      "marks": 10,
+      "question": "Critically examine...",
+      "result": {
+        "overallScore": 7.5,
+        "maxScore": 10,
+        "categories": [...],
+        "keyPointsAnalysis": {...},
+        "improvementTips": [...],
+        "modelAnswerStructure": "...",
+        "strengths": [...],
+        "summary": "..."
+      },
+      "score": 7.5,
+      "maxScore": 10,
+      "percentage": 75
+    }
+  ]
+  ```
+</Accordion>
+
+## Importing History
+
+You can import previously exported history files:
+
+<Steps>
+  <Step title="Click Import">
+    In the Recent Evaluations header, click the **"Import"** button (upload icon).
+  </Step>
+  
+  <Step title="Select your JSON file">
+    Choose a previously exported `.json` history file from your device.
+  </Step>
+  
+  <Step title="Choose import mode">
+    A dialog will appear with two options:
+    
+    **Merge** — Adds imported evaluations to your existing history (recommended)
+    
+    **Replace All** — Deletes current history and replaces it with imported data
+  </Step>
+  
+  <Step title="Confirm">
+    Click your chosen option. The evaluations will be loaded immediately.
+  </Step>
+</Steps>
+
+<Warning>
+  **Replace All is permanent!**
+  
+  If you choose "Replace All", your current evaluation history will be deleted and cannot be recovered. Always export your current history first before replacing.
+</Warning>
+
+### When to Import/Export
+
+<AccordionGroup>
+  <Accordion title="Switching devices">
+    Export on Device A → Import on Device B to access your history anywhere.
+  </Accordion>
+  
+  <Accordion title="Sharing with mentors">
+    Export your history and share the JSON file with teachers/mentors for review.
+  </Accordion>
+  
+  <Accordion title="Backup before clearing browser data">
+    Since history is stored in browser local storage, clearing browser data will delete it. Export first!
+  </Accordion>
+  
+  <Accordion title="Archiving old evaluations">
+    Export and clear history periodically to keep the app fast (e.g., after each exam cycle).
+  </Accordion>
+</AccordionGroup>
+
+## Clearing All History
+
+To delete all saved evaluations at once:
+
+1. Click the **"Clear All"** button in the Recent Evaluations header
+2. Confirm the deletion (this action cannot be undone)
+3. All evaluations and progress data will be permanently removed
+
+<Tip>
+  **Before clearing all history:**
+  
+  Always export your data first! You might want to review these evaluations later or share them with mentors.
+</Tip>
+
+## Understanding Progress Patterns
+
+### Healthy Progress Indicators
+
+<CardGroup cols={2}>
+  <Card title="Upward Trend" icon="trending-up">
+    Your score trend line slopes upward over time, showing consistent improvement.
+  </Card>
+  
+  <Card title="Reduced Variation" icon="chart-line">
+    Scores become more consistent (less fluctuation) as you develop skills.
+  </Card>
+  
+  <Card title="Category Balance" icon="balance-scale">
+    You're scoring similarly across all evaluation categories (no major weak spots).
+  </Card>
+  
+  <Card title="Subject Parity" icon="equals">
+    Average scores are similar across subjects (GS1-4), indicating well-rounded preparation.
+  </Card>
+</CardGroup>
+
+### Red Flags to Address
+
+<Warning>
+  Watch for these patterns that indicate areas needing focus:
+  
+  - **Declining trend:** Scores dropping over time (may indicate burnout or wrong approach)
+  - **High variation:** Wild swings between high and low scores (inconsistent preparation)
+  - **Subject gaps:** One subject consistently scoring 15-20% lower than others
+  - **Plateauing:** Scores stuck at the same level for 5+ evaluations (need strategy change)
+</Warning>
+
+## Using Progress Data to Improve
+
+<Steps>
+  <Step title="Review every 5 evaluations">
+    After every 5 evaluations, spend time analyzing the Progress Dashboard to identify trends.
+  </Step>
+  
+  <Step title="Compare category feedback">
+    Look at recent evaluations side-by-side — are you getting similar feedback repeatedly? That's your improvement priority.
+  </Step>
+  
+  <Step title="Set subject-specific goals">
+    If GS3 scores are consistently lower, dedicate more study time to technology/economy topics.
+  </Step>
+  
+  <Step title="Track improvement tip implementation">
+    Keep a notebook of improvement tips you've received and consciously implement 1-2 in each new answer.
+  </Step>
+  
+  <Step title="Celebrate milestones">
+    Hit 65%+ consistently? Crossed 70% for the first time? Acknowledge these achievements to stay motivated.
+  </Step>
+</Steps>
+
+## Next Steps
+
+Now that you understand progress tracking:
+- Aim for consistent 60%+ scores across subjects
+- Review past evaluations to identify recurring feedback
+- Export your history regularly as backup
+- Use the Progress Dashboard to guide your study priorities

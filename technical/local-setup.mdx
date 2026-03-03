@@ -1,0 +1,160 @@
+---
+title: Local Setup
+description: Set up the JKPSC Answer Evaluator on your local machine for development
+---
+
+Get the JKPSC Answer Evaluator running locally in minutes. This guide covers cloning the repository, installing dependencies, and starting the development server.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Bun** (recommended) or npm/yarn/pnpm
+- **Node.js** 18+ (if using npm/yarn/pnpm)
+- **Git**
+
+<Note>
+This project uses **Bun** as the primary package manager. While npm/yarn/pnpm will work, we recommend using Bun for the best experience.
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the project from your source repository:
+    
+    ```bash
+    git clone <repository-url>
+    cd jkpsc-answer-evaluator
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all required dependencies using Bun:
+    
+    <CodeGroup>
+    ```bash Bun (Recommended)
+    bun install
+    ```
+
+    ```bash npm
+    npm install
+    ```
+
+    ```bash yarn
+    yarn install
+    ```
+
+    ```bash pnpm
+    pnpm install
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Start the development server">
+    Launch the local development server:
+    
+    <CodeGroup>
+    ```bash Bun (Recommended)
+    bun run dev
+    ```
+
+    ```bash npm
+    npm run dev
+    ```
+
+    ```bash yarn
+    yarn dev
+    ```
+
+    ```bash pnpm
+    pnpm dev
+    ```
+    </CodeGroup>
+
+    The application will start at **`http://localhost:8080`** by default.
+  </Step>
+
+  <Step title="Verify the setup">
+    Open your browser and navigate to `http://localhost:8080`. You should see the JKPSC Answer Evaluator interface.
+    
+    <Note>
+    You'll need a **Google Gemini API key** to use the evaluation features. The key is stored in your browser's localStorage and never sent to any backend.
+    </Note>
+  </Step>
+</Steps>
+
+## Available Scripts
+
+The project includes several npm scripts for development and production:
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start the Vite development server at `localhost:8080` |
+| `bun run build` | Build the production bundle |
+| `bun run build:dev` | Build in development mode |
+| `bun run preview` | Preview the production build locally |
+| `bun run test` | Run the test suite once |
+| `bun run test:watch` | Run tests in watch mode |
+| `bun run lint` | Run ESLint on the codebase |
+
+## Development Environment
+
+### Port Configuration
+
+The development server runs on port **8080** by default. If port 8080 is already in use, Vite will automatically select the next available port.
+
+### Hot Module Replacement
+
+Vite's HMR (Hot Module Replacement) is enabled by default. Changes to your source files will be reflected in the browser without a full page reload.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree" href="/technical/project-structure">
+    Understand the codebase organization and architecture
+  </Card>
+  <Card title="Testing" icon="flask" href="/technical/testing">
+    Learn how to run and write tests
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port 8080 is already in use">
+    Vite will automatically use the next available port. Check your terminal output for the actual URL.
+    
+    Alternatively, you can specify a custom port in `vite.config.ts`:
+    ```typescript
+    export default defineConfig({
+      server: {
+        port: 3000 // your preferred port
+      }
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Dependencies installation fails">
+    If you encounter issues with dependency installation:
+    
+    1. Clear the package manager cache:
+       ```bash
+       bun pm cache rm
+       ```
+    2. Delete `node_modules` and lockfiles:
+       ```bash
+       rm -rf node_modules bun.lockb
+       ```
+    3. Reinstall dependencies:
+       ```bash
+       bun install
+       ```
+  </Accordion>
+
+  <Accordion title="Module not found errors">
+    Ensure all dependencies are installed correctly. The project uses path aliases (`@/`) that are configured in `vite.config.ts`.
+    
+    If errors persist, try restarting the development server.
+  </Accordion>
+</AccordionGroup>

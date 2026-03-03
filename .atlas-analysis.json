@@ -1,0 +1,106 @@
+{
+  "projectType": "saas",
+  "projectName": "JKPSC Answer Evaluator",
+  "projectDescription": "AI-powered UPSC/JKPSC Mains answer evaluation tool that provides instant detailed feedback with scoring, analysis, and improvement tips using Google Gemini API.",
+  "theme": "almond",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#A78BFA",
+  "darkColor": "#7C3AED",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "features"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/setup",
+              "guide/uploading-answers",
+              "guide/understanding-evaluations",
+              "guide/tracking-progress"
+            ]
+          },
+          {
+            "group": "Subjects",
+            "pages": [
+              "subjects/general-studies-1",
+              "subjects/general-studies-2",
+              "subjects/general-studies-3",
+              "subjects/general-studies-4",
+              "subjects/essay-writing"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/evaluation-rubrics",
+              "advanced/scoring-methodology",
+              "advanced/data-privacy"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Technical",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "technical/architecture",
+              "technical/tech-stack",
+              "technical/client-side-processing"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "technical/local-setup",
+              "technical/project-structure",
+              "technical/testing"
+            ]
+          },
+          {
+            "group": "Integration",
+            "pages": [
+              "technical/gemini-api",
+              "technical/pdf-processing",
+              "technical/storage"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "AI-powered answer evaluation using Google Gemini API",
+    "Support for GS1, GS2, GS3, GS4, and Essay subjects",
+    "PDF and image upload with text extraction",
+    "Detailed scoring with category-wise feedback",
+    "Evaluation history tracking with IndexedDB",
+    "Progress dashboard with analytics",
+    "Client-side processing ensuring data privacy",
+    "Subject-specific rubrics and key points analysis",
+    "70% scoring ceiling aligned with UPSC standards",
+    "PESTEL+ multidimensional analysis framework"
+  ],
+  "publicApiSurface": [
+    "evaluateAnswer() - Core evaluation function",
+    "ApiKeyManager - Component for managing Gemini API keys",
+    "SubjectMarksSelector - Subject and marks selection interface",
+    "PdfUpload - PDF/image upload and text extraction",
+    "EvaluationResults - Display detailed evaluation results",
+    "EvalHistory - View and manage evaluation history",
+    "ProgressDashboard - Analytics and progress tracking",
+    "useEvalHistory() - Hook for history management",
+    "Subject rubrics: gs1Rubrics, gs2Rubrics, gs3Rubrics, gs4Rubrics, essayRubrics",
+    "Key points data: gs1KeyPoints, gs2KeyPoints, gs3KeyPoints, gs4KeyPoints"
+  ]
+}

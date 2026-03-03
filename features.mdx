@@ -651,7 +651,7 @@ useEffect(() => {
 
 ## 10. Offline Support
 
-### Service Worker (Coming Soon)
+### Progressive Web App (PWA)
 
 ```javascript
 // From public/sw.js - Service worker registration
@@ -674,6 +674,43 @@ self.addEventListener('install', (event) => {
 - View past evaluations offline
 - Queue evaluations for when online
 - Background sync for pending requests
+
+---
+
+## 11. Community Integration
+
+### Telegram Channel Popup
+
+The app includes a non-intrusive Telegram channel invitation that appears 3 seconds after the first visit:
+
+```typescript
+// From TelegramPopup.tsx - Smart popup timing
+const SHOW_DELAY_MS = 3000;
+const DISMISSED_KEY = 'jkpscprep_tg_dismissed';
+
+useEffect(() => {
+  if (localStorage.getItem(DISMISSED_KEY)) return;
+  const timer = setTimeout(() => setIsVisible(true), SHOW_DELAY_MS);
+  return () => clearTimeout(timer);
+}, []);
+```
+
+**Popup Features**:
+- Appears only once per browser (uses localStorage to remember dismissal)
+- Can be dismissed with "X" button or "Maybe later" link
+- Direct link to [@jkpscprepp](https://t.me/jkpscprepp) Telegram channel
+- Beautiful gradient design matching Telegram branding
+- Highlights benefits: free study materials, product updates, preparation tips, and community
+
+**Why Join**:
+- Get updates about new features and tools
+- Access free UPSC/JKPSC study materials
+- Connect with serious aspirants
+- Share feedback and feature requests
+
+<Tip>
+  The popup respects user choice and never appears again once dismissed. You can always access the Telegram link in the footer.
+</Tip>
 
 ---
 
